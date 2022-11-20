@@ -1,76 +1,75 @@
+from typing import Protocol
 from PyQt5 import QtWidgets as widgets
 from PyQt5 import QtCore as core
+from PyQt5 import QtGui as gui
 
-from main import StartMenuFolder, StartMenu
-
-
-def wrap_label(label: widgets.QLabel):
-    label.setStyleSheet(
-        """QLabel
-{
-    margin-top: 5px;
-    margin-left: 3px;
-    color: #54595d;
-}"""
-    )
+from main import StartMenuFolder, StartMenuShortcut, StartMenu
 
 
-def wrap_default_checkbox(checkbox: widgets.QCheckBox):
-    checkbox.setStyleSheet(
-        """QCheckBox
-{
-    margin-left: 10px;
-}"""
-    )
+class SupportsSetCursor(Protocol):
+    def setCursor(self, *args, **kwargs):
+        ...
 
 
-def wrap_last_checkbox(checkbox: widgets.QCheckBox):
-    checkbox.setStyleSheet(
-        """QCheckBox
-{
-    margin-left: 10px;
-    border: 0px solid;
-}"""
-    )
+def setCursorPointerOnHover(obj: SupportsSetCursor):
+    obj.setCursor(gui.QCursor(core.Qt.CursorShape.PointingHandCursor))
 
 
-def get_divider():
-    frame = widgets.QFrame()
-    # frame.setStyleSheet('QFrame {background: red;}')
-    frame.setFrameShape(widgets.QFrame.Shape(4))
-    frame.setFrameShadow(widgets.QFrame.Shadow(48))
-    frame.setFixedSize(200, 2)
-    frame.setStyleSheet('QFrame {margin-left: 7px;}')
+def wrapBold(string: str):
+    return f'<strong>{string}</strong>'
 
-    return frame
+
+def wrapU(string: str):
+    return f'<u>{string}</u>'
+
+
+def clearHtmlTags(string: str):
+    string = string[string.find('>') + 1:]
+    return string[:string.find('<')]
+
+
+class ChooseFolderButton(widgets.QLabel):
+    defaultText = core.QCoreApplication.translate('Main Window', 'Choose directory')
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.setGeometry(core.QRect(275, 20, 100, 15))
+        self.setStyleSheet('color: grey;')
+        setCursorPointerOnHover(self)
+
+    def mousePressEvent(self, event: gui.QMouseEvent) -> None:
+        path = widgets.QFileDialog.getExistingDirectory()
+
+        if not path:
+            return
+
+        metrics = gui.QFontMetrics(self.font())
+        text = metrics.elidedText(path, core.Qt.TextElideMode.ElideRight, self.width())
+        self.setText(text)
+        self.setToolTip(wrapBold(path))
 
 
 class MainWindow(widgets.QMainWindow):
     def __init__(self, folders: list[StartMenuFolder]):
         super().__init__()
 
-        self.resize(390, 317)
+        self.setFixedSize(core.QSize(390, 317))
         self.centralwidget = widgets.QWidget(self)
 
-        self.path2folderLabel = widgets.QLabel(self.centralwidget)
-        self.path2folderLabel.setGeometry(core.QRect(280, 20, 111, 16))
-        self.path2folderLabel.setStyleSheet('color: grey;')
-        # self.path2folderLabel.mousePressEvent()  # todo
+        self.path2FolderLabel = ChooseFolderButton(self.centralwidget)
 
         self.move2FolderRadioButton = widgets.QRadioButton(self.centralwidget)
-        self.move2FolderRadioButton.setGeometry(core.QRect(280, 40, 91, 17))
+        self.move2FolderRadioButton.setGeometry(core.QRect(275, 40, 90, 17))
 
         self.deleteRadioButton = widgets.QRadioButton(self.centralwidget)
-        self.deleteRadioButton.setGeometry(core.QRect(280, 70, 82, 17))
+        self.deleteRadioButton.setGeometry(core.QRect(275, 70, 90, 17))
         self.deleteRadioButton.setChecked(True)  # set default choose
 
         self.applyButton = widgets.QPushButton(self.centralwidget)
-        self.applyButton.setGeometry(core.QRect(290, 270, 81, 31))
+        self.applyButton.setGeometry(core.QRect(285, 270, 80, 31))
 
         self.scrollArea = widgets.QScrollArea(self.centralwidget)
-        self.scrollArea.setGeometry(core.QRect(10, 10, 251, 291))
-        # self.scrollArea.setMaximumSize(core.QSize(16777215, 291))
-        self.scrollArea.setMaximumHeight(291)
+        self.scrollArea.setGeometry(core.QRect(10, 10, 250, 290))  # -1px h
         self.scrollArea.setVerticalScrollBarPolicy(core.Qt.ScrollBarAlwaysOn)
         self.scrollArea.setWidgetResizable(True)
         self.scrollArea.setStyleSheet(
@@ -81,14 +80,13 @@ class MainWindow(widgets.QMainWindow):
         )
 
         self.scrollAreaWidget = widgets.QWidget()
-        # self.scrollAreaWidget.setMinimumWidth(190)
         self.scrollAreaWidgetLayout = widgets.QVBoxLayout()
 
         for folder in folders:
             folderLabel = widgets.QLabel(self.scrollArea)
             folderLabel.setText(folder.name)
             folderLabel.setStyleSheet("color: #54595d;")
-            # folderLabel.mousePressEvent()  # todo
+            # folderLabel.mousePressEvent = ...  # todo
 
             self.scrollAreaWidgetLayout.addWidget(folderLabel)
 
@@ -114,11 +112,13 @@ class MainWindow(widgets.QMainWindow):
 
     def retranslateUi(self):
         _translate = core.QCoreApplication.translate
-        self.path2folderLabel.setText(_translate('MainWindow', 'C:\\Users\\Downloads'))
+
+        self.path2FolderLabel.setText(wrapU(self.path2FolderLabel.defaultText))
+        self.path2FolderLabel.setToolTip(wrapBold(self.path2FolderLabel.defaultText))
+
         self.move2FolderRadioButton.setText(_translate('MainWindow', 'Move to folder'))
         self.deleteRadioButton.setText(_translate('MainWindow', 'Delete'))
         self.applyButton.setText(_translate('MainWindow', 'Apply'))
-
         self.setWindowTitle(_translate('MainWindow', 'Start Menu Folders Cleaner'))
 
 
