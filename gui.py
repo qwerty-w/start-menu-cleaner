@@ -28,6 +28,20 @@ def clearHtmlTags(string: str):
     return string[:string.find('<')]
 
 
+class StartMenuShortcutGUI:
+    def __init__(self, checkbox: widgets.QCheckBox, shortcut: StartMenuShortcut):
+        self.shortcut = shortcut
+        self.checkbox = checkbox
+
+
+class StartMenuFolderGUI:
+    def __init__(self, label: widgets.QLabel, folder: StartMenuFolder, guiShortcuts: list[StartMenuShortcutGUI]):
+        self.folder = folder
+        self.label = label
+        self.guiShortcuts = guiShortcuts
+        self.disabled = False
+
+
 class ChooseFolderButton(widgets.QLabel):
     defaultText = core.QCoreApplication.translate('Main Window', 'Choose directory')
 
@@ -50,10 +64,21 @@ class ChooseFolderButton(widgets.QLabel):
 
 
 class MainWindow(widgets.QMainWindow):
+    def handleFolderButtonClick(self, folder: StartMenuFolderGUI):
+        def handler(event: gui.QMouseEvent):
+            for shortcut in folder.guiShortcuts:
+                shortcut.checkbox.setDisabled(not folder.disabled)
+
+            folder.disabled = not folder.disabled
+
+        return handler
+
     def __init__(self, folders: list[StartMenuFolder]):
         super().__init__()
 
-        self.setFixedSize(core.QSize(390, 317))
+        defaultWindowSize = core.QSize(390, 317)
+        self.setFixedSize(defaultWindowSize)
+
         self.centralwidget = widgets.QWidget(self)
 
         self.path2FolderLabel = ChooseFolderButton(self.centralwidget)
@@ -82,19 +107,28 @@ class MainWindow(widgets.QMainWindow):
         self.scrollAreaWidget = widgets.QWidget()
         self.scrollAreaWidgetLayout = widgets.QVBoxLayout()
 
+        self.guiFolders = []
         for folder in folders:
             folderLabel = widgets.QLabel(self.scrollArea)
             folderLabel.setText(folder.name)
             folderLabel.setStyleSheet("color: #54595d;")
-            # folderLabel.mousePressEvent = ...  # todo
-
             self.scrollAreaWidgetLayout.addWidget(folderLabel)
 
+            guiFolder = StartMenuFolderGUI(folderLabel, folder, [])
+            self.guiFolders.append(guiFolder)
+
+            guiShortcuts = []
             for shortcut in folder.shortcuts:
                 shortcutCheckbox = widgets.QCheckBox(self.scrollArea)
                 shortcutCheckbox.setText(shortcut.name)
                 # todo: add icon
                 self.scrollAreaWidgetLayout.addWidget(shortcutCheckbox)
+
+                guiShortcut = StartMenuShortcutGUI(shortcutCheckbox, shortcut)
+                guiShortcuts.append(guiShortcut)
+
+            guiFolder.guiShortcuts = guiShortcuts
+            folderLabel.mousePressEvent = self.handleFolderButtonClick(guiFolder)
 
         self.scrollAreaWidgetLayout.addStretch()
         self.scrollAreaWidget.setLayout(self.scrollAreaWidgetLayout)
