@@ -80,6 +80,17 @@ class DeleteRadioButton(Widget, widgets.QRadioButton):
         self.setChecked(True)
 
 
+class ApplyToEmptyFoldersButton(Widget, widgets.QCheckBox):
+    def __init__(self, emptyFolders: list[Union[StartMenuFolder, StartMenuExtendedFolder]], *args, **kwargs):
+        self.emptyFolders = emptyFolders
+
+        super().__init__(*args, **kwargs)
+
+    def initUi(self):
+        self.setChecked(True)
+        self.setToolTip(', '.join(f'"{x.name}"' for x in self.emptyFolders))
+
+
 class ApplyButton(Widget, widgets.QPushButton):
     pass
 
@@ -180,9 +191,14 @@ class ShortcutsArea(Widget, widgets.QScrollArea):
         self.showWidgets()
 
 
+def pop_empty_folders(folders: list[Union[StartMenuFolder, StartMenuExtendedFolder]]):
+    return [folders.pop(index) for index, folder in enumerate(folders) if folder.is_empty()]
+
+
 class MainWindow(widgets.QMainWindow):
     def __init__(self, folders: list[Union[StartMenuFolder, StartMenuExtendedFolder]]):
         super().__init__()
+        emptyFolders = pop_empty_folders(folders)
 
         defaultWindowSize = core.QSize(390, 317)
         self.setFixedSize(defaultWindowSize)
@@ -196,6 +212,8 @@ class MainWindow(widgets.QMainWindow):
         self.applyButton = ApplyButton(self.centralwidget)
         self.shortcutsArea = ShortcutsArea(folders, self.centralwidget)
         self.setCentralWidget(self.centralwidget)
+
+        self.apply2EmptyFolders = ApplyToEmptyFoldersButton(emptyFolders, self.centralwidget)
 
         # self.menubar = widgets.QMenuBar(self)
         # self.menubar.setGeometry(core.QRect(0, 0, 396, 21))
@@ -211,6 +229,7 @@ class MainWindow(widgets.QMainWindow):
         self.path2FolderLabel.setText(_translate('MainWindow', wrapU('Choose directory')))
         self.move2FolderRadioButton.setText(_translate('MainWindow', 'Move to directory'))
         self.deleteRadioButton.setText(_translate('MainWindow', 'Delete'))
+        self.apply2EmptyFolders.setText(_translate('MainWindow', 'Apply to empty\nfolders'))
         self.applyButton.setText(_translate('MainWindow', 'Apply'))
         self.setWindowTitle(_translate('MainWindow', 'Start Menu Folders Cleaner'))
 
@@ -219,6 +238,7 @@ class MainWindow(widgets.QMainWindow):
         self.path2FolderLabel.setGeometry(core.QRect(0, 0, 110, 20))
         self.move2FolderRadioButton.setGeometry(core.QRect(0, 20, 110, 20))
         self.deleteRadioButton.setGeometry(core.QRect(0, 40, 110, 20))
+        self.apply2EmptyFolders.setGeometry(core.QRect(275, 85, 110, 30))
         self.applyButton.setGeometry(core.QRect(285, 270, 80, 31))
         self.shortcutsArea.setGeometry(core.QRect(10, 10, 250, 290))  # -1px h
 
