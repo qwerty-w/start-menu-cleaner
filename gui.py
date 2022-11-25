@@ -1,3 +1,4 @@
+import os
 from typing import Union
 from PyQt5 import QtWidgets as widgets
 from PyQt5 import QtCore as core
@@ -98,6 +99,29 @@ class ApplyButton(Widget, widgets.QPushButton):
 class StartMenuShortcutGUI(Widget, widgets.QCheckBox):
     iconProvider = widgets.QFileIconProvider()
 
+    class ContextMenu(Widget, widgets.QMenu):
+        actionsTexts = {
+            'open-shortcut-path': '',
+            'open-target-path': ''
+        }
+
+        def initUi(self):
+            for text in self.actionsTexts.values():
+                self.addAction(widgets.QAction(text, self))
+            self.setStyleSheet('QMenu { color: black; background-color: white; }'
+                               'QMenu::item:selected { color: black; background-color: #F0F0F0; }')
+
+        def handleAction(self, action: widgets.QAction, parent: 'StartMenuShortcutGUI'):
+            index = self.actions().index(action)
+
+            if index == 0:
+                os.system(f'explorer.exe /select, "{parent.shortcut.path}"')
+
+            elif index == 1:
+                rawPath = core.QFileInfo(parent.shortcut.path).symLinkTarget()
+                targetPath = os.path.normpath(rawPath) if rawPath else parent.shortcut.path
+                os.system(f'explorer.exe /select, "{targetPath}"')
+
     def __init__(self, shortcut: StartMenuShortcut, *args, **kwargs):
         self.shortcut = shortcut
         self.unavailableIcon = gui.QIcon(r'icons\unavailable.png')  # todo: maybe remove
@@ -116,6 +140,13 @@ class StartMenuShortcutGUI(Widget, widgets.QCheckBox):
     def initUi(self):
         self.setText(self.shortcut.name)
         self.setIcon(self.getIcon())
+
+    def contextMenuEvent(self, event: gui.QContextMenuEvent):
+        menu = self.ContextMenu()
+        action = menu.exec(event.globalPos())
+
+        if action:
+            menu.handleAction(action, self)
 
 
 class StartMenuFolderGUI(Widget, widgets.QLabel):
@@ -255,6 +286,8 @@ class MainWindow(widgets.QMainWindow):
         self.apply2EmptyFolders.setText(_translate('MainWindow', 'Apply to empty\nfolders'))
         self.applyButton.setText(_translate('MainWindow', 'Apply'))
         self.setWindowTitle(_translate('MainWindow', 'Start Menu Folders Cleaner'))
+        StartMenuShortcutGUI.ContextMenu.actionsTexts['open-shortcut-path'] = 'Open shortcut path'
+        StartMenuShortcutGUI.ContextMenu.actionsTexts['open-target-path'] = 'Open target path'
 
     def setGeometryUi(self):
         self.moveOrDeleteGeneralWidget.setGeometry(core.QRect(275, 20, 110, 60))
