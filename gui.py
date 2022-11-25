@@ -1,8 +1,9 @@
+from typing import Union
 from PyQt5 import QtWidgets as widgets
 from PyQt5 import QtCore as core
 from PyQt5 import QtGui as gui
 
-from main import StartMenuShortcut, StartMenuFolder, StartMenu
+from main import StartMenuShortcut, StartMenuFolder, StartMenuExtendedFolder, StartMenu
 
 
 def wrapBold(string: str):
@@ -94,7 +95,7 @@ class StartMenuShortcutGUI(Widget, widgets.QCheckBox):
 
 class StartMenuFolderGUI(Widget, widgets.QLabel):
     def __init__(self,
-                 folder: StartMenuFolder,
+                 folder: Union[StartMenuFolder, StartMenuExtendedFolder],
                  guiShortcuts: list[StartMenuShortcutGUI],
                  *args,
                  **kwargs):
@@ -117,7 +118,7 @@ class StartMenuFolderGUI(Widget, widgets.QLabel):
 
 
 class ShortcutsArea(Widget, widgets.QScrollArea):
-    def __init__(self, folders: list[StartMenuFolder], *args, **kwargs):
+    def __init__(self, folders: list[Union[StartMenuFolder, StartMenuExtendedFolder]], *args, **kwargs):
         self.folders = folders
         self.initWidget = widgets.QWidget()
         self.initLayout = widgets.QVBoxLayout()
@@ -157,7 +158,7 @@ class ShortcutsArea(Widget, widgets.QScrollArea):
 
 
 class MainWindow(widgets.QMainWindow):
-    def __init__(self, folders: list[StartMenuFolder]):
+    def __init__(self, folders: list[Union[StartMenuFolder, StartMenuExtendedFolder]]):
         super().__init__()
 
         defaultWindowSize = core.QSize(390, 317)
