@@ -85,12 +85,26 @@ class ApplyButton(Widget, widgets.QPushButton):
 
 
 class StartMenuShortcutGUI(Widget, widgets.QCheckBox):
+    iconProvider = widgets.QFileIconProvider()
+
     def __init__(self, shortcut: StartMenuShortcut, *args, **kwargs):
         self.shortcut = shortcut
+        self.unavailableIcon = gui.QIcon(r'icons\unavailable.png')  # todo: maybe remove
+
         super().__init__(*args, **kwargs)
+
+    def getIcon(self) -> gui.QIcon:
+        return self.iconProvider.icon(core.QFileInfo(self.shortcut.path))
+
+    def getTargetIcon(self) -> gui.QIcon:
+        shortcutInfo = core.QFileInfo(self.shortcut.path)
+        target = shortcutInfo.symLinkTarget()
+        fileInfo = core.QFileInfo(target) if target else shortcutInfo
+        return self.iconProvider.icon(fileInfo)
 
     def initUi(self):
         self.setText(self.shortcut.name)
+        self.setIcon(self.getIcon())
 
 
 class StartMenuFolderGUI(Widget, widgets.QLabel):
