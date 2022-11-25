@@ -4,7 +4,7 @@ import locale
 from typing import Union
 
 
-DEFAULT_START_MENU_OBJECTS_DIRS = [
+DEFAULT_START_MENU_SHORTCUTS_DIRS = [
     os.path.join(os.getenv('AppData'), r'Microsoft\Windows\Start Menu\Programs'),
     os.path.join(os.getenv('SystemDrive'), r'\ProgramData\Microsoft\Windows\Start Menu\Programs')
 ]
@@ -96,7 +96,7 @@ class StartMenu:
     def get_folders() -> list[Union[StartMenuFolder, StartMenuExtendedFolder]]:
         folders = []
 
-        for sm_dir in DEFAULT_START_MENU_OBJECTS_DIRS:
+        for sm_dir in DEFAULT_START_MENU_SHORTCUTS_DIRS:
             for item in os.listdir(sm_dir):
                 full_path = os.path.join(sm_dir, item)
 
