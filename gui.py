@@ -116,19 +116,28 @@ class StartMenuFolderGUI(Widget, widgets.QLabel):
 
         self.folder = folder
         self.guiShortcuts = guiShortcuts
-        self.disabled = False
+        self.isKept = False
+        self.keptStyleSheet = 'color: green;'
+        self.notKeptStyleSheet = 'color: #54595d;'
 
         super().__init__(*args, **kwargs)
 
     def initUi(self):
         self.setText(self.folder.name)
+        self.setStyleSheet(self.notKeptStyleSheet)
+
+    def setKeptReverse(self):
+        self.isKept = not self.isKept
+
+        if self.isKept:
+            self.setStyleSheet(self.keptStyleSheet)
+
+        else:
+            self.setStyleSheet(self.notKeptStyleSheet)
 
     def mousePressEvent(self, event: gui.QMouseEvent):
         if event.button() == 1:
-            self.disabled = not self.disabled
-
-            for shortcut in self.guiShortcuts:
-                shortcut.setDisabled(self.disabled)
+            self.setKeptReverse()
 
 
 class ShortcutsArea(Widget, widgets.QScrollArea):
