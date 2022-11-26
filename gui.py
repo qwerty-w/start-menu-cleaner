@@ -4,6 +4,7 @@ from PyQt5 import QtWidgets as widgets
 from PyQt5 import QtCore as core
 from PyQt5 import QtGui as gui
 
+from app_text import TEXT
 from main import StartMenuShortcut, StartMenuFolder, StartMenuExtendedFolder, StartMenu
 
 
@@ -31,16 +32,11 @@ class Widget:
 
 class ChooseFolderButton(Widget, widgets.QLabel):
     def __init__(self, *args, **kwargs):
-        # self._customToolTipText = None
-
         super().__init__(*args, **kwargs)
 
     def initUi(self):
         self.setStyleSheet('color: grey;')
         self.setCursor(gui.QCursor(core.Qt.CursorShape.PointingHandCursor))  # set cursor: pointer
-
-    # def setCustomToolTip(self, text: str):
-    #     self._customToolTipText = text
 
     def mousePressEvent(self, event: gui.QMouseEvent) -> None:
         path = widgets.QFileDialog.getExistingDirectory(
@@ -56,20 +52,6 @@ class ChooseFolderButton(Widget, widgets.QLabel):
         text = metrics.elidedText(path, core.Qt.TextElideMode.ElideLeft, self.width())
         self.setText(text)
         self.setToolTip(wrapBold(path))
-        # self.setInstantToolTip(wrapBold(path))
-
-    # def enterEvent(self, event: core.QEvent):
-    #     if self._customToolTipText:
-    #         geometry = self.geometry()
-    #         point = self.mapToGlobal(core.QPoint(geometry.x() + geometry.width(), geometry.height()))
-    #         core.QTimer.singleShot(
-    #             200,
-    #             lambda: widgets.QToolTip.showText(point, self._customToolTipText, self)
-    #         )
-    #
-    # def leaveEvent(self, event: gui.QDragLeaveEvent):
-    #     if self._customToolTipText:
-    #         widgets.QToolTip.hideText()
 
 
 class MoveToFolderRadioButton(Widget, widgets.QRadioButton):
@@ -99,89 +81,54 @@ class ApplyButton(Widget, widgets.QPushButton):
 class StartMenuShortcutGUI(Widget, widgets.QCheckBox):
     iconProvider = widgets.QFileIconProvider()
 
-    class ContextMenu(Widget, widgets.QMenu):
-        actionsTexts = {
-            'open-shortcut-path': '',
-            'open-target-path': ''
-        }
-
-        def initUi(self):
-            for text in self.actionsTexts.values():
-                self.addAction(widgets.QAction(text, self))
-            self.setStyleSheet('QMenu { color: black; background-color: white; }'
-                               'QMenu::item:selected { color: black; background-color: #F0F0F0; }')
-
-        def handleAction(self, action: widgets.QAction, parent: 'StartMenuShortcutGUI'):
-            index = self.actions().index(action)
-
-            if index == 0:
-                os.system(f'explorer.exe /select, "{parent.shortcut.path}"')
-
-            elif index == 1:
-                rawPath = core.QFileInfo(parent.shortcut.path).symLinkTarget()
-                targetPath = os.path.normpath(rawPath) if rawPath else parent.shortcut.path
-                os.system(f'explorer.exe /select, "{targetPath}"')
-
     def __init__(self, shortcut: StartMenuShortcut, *args, **kwargs):
         self.shortcut = shortcut
+
+        rawPath = core.QFileInfo(self.shortcut.path).symLinkTarget()
+        self.targetPath = os.path.normpath(rawPath) if rawPath else None
+
         self.unavailableIcon = gui.QIcon(r'icons\unavailable.png')  # todo: maybe remove
 
         super().__init__(*args, **kwargs)
-
-    def getIcon(self) -> gui.QIcon:
-        return self.iconProvider.icon(core.QFileInfo(self.shortcut.path))
-
-    def getTargetIcon(self) -> gui.QIcon:
-        shortcutInfo = core.QFileInfo(self.shortcut.path)
-        target = shortcutInfo.symLinkTarget()
-        fileInfo = core.QFileInfo(target) if target else shortcutInfo
-        return self.iconProvider.icon(fileInfo)
 
     def initUi(self):
         self.setText(self.shortcut.name)
         self.setIcon(self.getIcon())
 
+    def getIcon(self) -> gui.QIcon:
+        return self.iconProvider.icon(core.QFileInfo(self.shortcut.path))
+
+    def getTargetIcon(self) -> gui.QIcon:
+        fileInfo = core.QFileInfo(self.targetPath if self.targetPath else self.shortcut.path)
+        return self.iconProvider.icon(fileInfo)
+
+    def openInExplorer(self):
+        os.system(f'explorer.exe /select, "{self.shortcut.path}"')
+
+    def openTargetInExplorer(self):
+        os.system(f'explorer.exe /select, "{self.targetPath}"')
+
     def contextMenuEvent(self, event: gui.QContextMenuEvent):
-        menu = self.ContextMenu()
+        menu = widgets.QMenu()
+        menu.setStyleSheet('QMenu { color: black; background-color: white; }'
+                           'QMenu::item:selected { color: black; background-color: #F0F0F0; }')
+
+        openInExplorerAction = widgets.QAction(self)
+        openInExplorerAction.setText(TEXT.OPEN_SHORTCUT_PATH)
+        openTargetInExplorerAction = widgets.QAction(self)
+        openTargetInExplorerAction.setText(TEXT.OPEN_TARGET_PATH)
+
+        menu.addActions([openInExplorerAction, openTargetInExplorerAction])
         action = menu.exec(event.globalPos())
 
-        if action:
-            menu.handleAction(action, self)
+        if action is openInExplorerAction:
+            self.openInExplorer()
+
+        elif action is openTargetInExplorerAction:
+            self.openTargetInExplorer()
 
 
 class StartMenuFolderGUI(Widget, widgets.QLabel):
-    class ContextMenu(Widget, widgets.QMenu):
-        actionsTexts = {
-            'keep-action': {
-                'keep': '',
-                'unkeep': ''
-            },
-            'skip-action': {
-                'skip': '',
-                'dont-skip': ''
-            }
-        }
-
-        def initUi(self):
-            parent = self.parent()
-            keepActionText = self.actionsTexts['keep-action']['unkeep' if parent.isKept else 'keep']
-            skipActionText = self.actionsTexts['skip-action']['dont-skip' if parent.disabledShortcuts else 'skip']
-            self.addActions(widgets.QAction(' ' * 4 + text, self) for text in [keepActionText, skipActionText])
-
-            self.setStyleSheet('QMenu { color: black; background-color: white; }'
-                               'QMenu::item:selected { color: black; background-color: #F0F0F0; }')
-
-        def handleAction(self, action: widgets.QAction, parent: 'StartMenuFolderGUI'):
-            index = self.actions().index(action)
-
-            if index == 0:
-                parent.setKeptReverse()
-
-            elif index == 1:
-                parent.disabledShortcuts = not parent.disabledShortcuts
-                for shortcut in parent.guiShortcuts:
-                    shortcut.setDisabled(parent.disabledShortcuts)
-
     def __init__(self,
                  folder: Union[StartMenuFolder, StartMenuExtendedFolder],
                  guiShortcuts: list[StartMenuShortcutGUI],
@@ -193,7 +140,7 @@ class StartMenuFolderGUI(Widget, widgets.QLabel):
         self.isKept = False
         self.keptStyleSheet = 'color: green;'
         self.notKeptStyleSheet = 'color: #54595d;'
-        self.disabledShortcuts = False
+        self.isSkipped = False
 
         super().__init__(*args, **kwargs)
 
@@ -202,13 +149,33 @@ class StartMenuFolderGUI(Widget, widgets.QLabel):
         self.setStyleSheet(self.notKeptStyleSheet)
 
     def contextMenuEvent(self, event: gui.QContextMenuEvent) -> None:
-        menu = self.ContextMenu(self)
+        menu = widgets.QMenu(self)
+        menu.setStyleSheet('QMenu { color: black; background-color: white; }'
+                           'QMenu::item:selected { color: black; background-color: #F0F0F0; }')
+
+        if not self.isSkipped:
+            keepAction = widgets.QAction(self)
+            keepAction.setText(TEXT.UNKEEP_FOLDER if self.isKept else TEXT.KEEP_FOLDER)
+
+        else:
+            keepAction = None
+
+        skipAction = widgets.QAction(self)
+        skipAction.setText(TEXT.DONT_SKIP_FOLDER if self.isSkipped else TEXT.SKIP_FOLDER)
+
+        menu.addActions([act for act in [keepAction, skipAction] if act is not None])
         action = menu.exec(event.globalPos())
 
-        if action:
-            menu.handleAction(action, self)
+        if not action:
+            return
 
-    def setKeptReverse(self):
+        elif action is keepAction:
+            self.reverseKeptState()
+
+        elif action is skipAction:
+            self.reverseSkippedState()
+
+    def reverseKeptState(self):
         self.isKept = not self.isKept
 
         if self.isKept:
@@ -217,9 +184,18 @@ class StartMenuFolderGUI(Widget, widgets.QLabel):
         else:
             self.setStyleSheet(self.notKeptStyleSheet)
 
+    def reverseSkippedState(self):
+        self.isSkipped = not self.isSkipped
+
+        for shortcut in self.guiShortcuts:
+            shortcut.setDisabled(self.isSkipped)
+
+        if self.isKept:
+            self.reverseKeptState()
+
     def mousePressEvent(self, event: gui.QMouseEvent):
-        if event.button() == 1:
-            self.setKeptReverse()
+        if event.button() == 1 and not self.isSkipped:
+            self.reverseKeptState()
 
 
 class ShortcutsArea(Widget, widgets.QScrollArea):
@@ -282,11 +258,8 @@ def pop_empty_folders(folders: list[Union[StartMenuFolder, StartMenuExtendedFold
 class MainWindow(widgets.QMainWindow):
     def __init__(self, folders: list[Union[StartMenuFolder, StartMenuExtendedFolder]]):
         super().__init__()
+
         emptyFolders = pop_empty_folders(folders)
-
-        defaultWindowSize = core.QSize(390, 317)
-        self.setFixedSize(defaultWindowSize)
-
         self.centralwidget = widgets.QWidget(self)
 
         self.moveOrDeleteGeneralWidget = widgets.QWidget(self.centralwidget)
@@ -304,12 +277,9 @@ class MainWindow(widgets.QMainWindow):
         self.applyButton = ApplyButton(self.centralwidget)
         self.shortcutsArea = ShortcutsArea(folders, self.centralwidget)
 
+        self.setFixedSize(core.QSize(390, 317))
+        self.setStyleSheet('MainWindow { background-color: #EFEFF1; }')
         self.setCentralWidget(self.centralwidget)
-
-        # self.menubar = widgets.QMenuBar(self)
-        # self.menubar.setGeometry(core.QRect(0, 0, 396, 21))
-        # self.setMenuBar(self.menubar)
-
         self.retranslateUi()
         self.setGeometryUi()
         core.QMetaObject.connectSlotsByName(self)
@@ -317,25 +287,15 @@ class MainWindow(widgets.QMainWindow):
     def retranslateUi(self):
         _translate = core.QCoreApplication.translate
 
-        self.path2FolderLabel.setText(_translate('MainWindow', wrapU('Choose directory')))
-        self.move2FolderRadioButton.setText(_translate('MainWindow', 'Move to directory'))
-        self.deleteRadioButton.setText(_translate('MainWindow', 'Delete'))
-        self.apply2Question.setText(_translate('MainWindow', 'Apply to:'))
-        self.apply2Checked.setText(_translate('MainWindow', 'Selected'))
-        self.apply2Unchecked.setText(_translate('MainWindow', 'Unselected'))
-        self.apply2EmptyFolders.setText(_translate('MainWindow', 'Apply to empty\nfolders'))
-        self.applyButton.setText(_translate('MainWindow', 'Apply'))
-        self.setWindowTitle(_translate('MainWindow', 'Start Menu Folders Cleaner'))
-        StartMenuShortcutGUI.ContextMenu.actionsTexts['open-shortcut-path'] = 'Open shortcut path'
-        StartMenuShortcutGUI.ContextMenu.actionsTexts['open-target-path'] = 'Open target path'
-        StartMenuFolderGUI.ContextMenu.actionsTexts['keep-action'] = {
-            'keep': _translate('MainWindow', 'Keep folder'),
-            'unkeep': _translate('MainWindow', 'Unkeep folder')
-        }
-        StartMenuFolderGUI.ContextMenu.actionsTexts['skip-action'] = {
-            'skip': _translate('MainWindow', 'Skip folder completely'),
-            'dont-skip': _translate('MainWindow', 'Don\'t skip folder')
-        }
+        self.path2FolderLabel.setText(wrapU(TEXT.CHOOSE_DIRECTORY))
+        self.move2FolderRadioButton.setText(TEXT.MOVE_TO_DIRECTORY)
+        self.deleteRadioButton.setText(TEXT.DELETE)
+        self.apply2Question.setText(TEXT.APPLY_TO)
+        self.apply2Checked.setText(TEXT.SELECTED)
+        self.apply2Unchecked.setText(TEXT.UNSELECTED)
+        self.apply2EmptyFolders.setText(TEXT.APPLY_TO_EMPTY_FOLDERS)
+        self.applyButton.setText(TEXT.APPLY)
+        self.setWindowTitle(TEXT.WINDOW_TITLE)
 
     def setGeometryUi(self):
         self.moveOrDeleteGeneralWidget.setGeometry(core.QRect(275, 20, 110, 60))
@@ -355,14 +315,8 @@ class MainWindow(widgets.QMainWindow):
 
 def main():
     app = widgets.QApplication([])
-    app.setStyleSheet("""
-    MainWindow {
-        background-color: #EFEFF1;
-    }
-""")
     window = MainWindow(StartMenu.get_folders())
     window.show()
-
     app.exec()
 
 
