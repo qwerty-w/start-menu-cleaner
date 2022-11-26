@@ -30,6 +30,11 @@ class Widget:
         ...
 
 
+class QAction(widgets.QAction):
+    def setText(self, text: str) -> None:
+        return super().setText(' ' * 4 + text)
+
+
 class ChooseFolderButton(Widget, widgets.QLabel):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -113,9 +118,9 @@ class StartMenuShortcutGUI(Widget, widgets.QCheckBox):
         menu.setStyleSheet('QMenu { color: black; background-color: white; }'
                            'QMenu::item:selected { color: black; background-color: #F0F0F0; }')
 
-        openInExplorerAction = widgets.QAction(self)
+        openInExplorerAction = QAction(self)
         openInExplorerAction.setText(TEXT.OPEN_SHORTCUT_PATH)
-        openTargetInExplorerAction = widgets.QAction(self)
+        openTargetInExplorerAction = QAction(self)
         openTargetInExplorerAction.setText(TEXT.OPEN_TARGET_PATH)
 
         menu.addActions([openInExplorerAction, openTargetInExplorerAction])
@@ -154,13 +159,13 @@ class StartMenuFolderGUI(Widget, widgets.QLabel):
                            'QMenu::item:selected { color: black; background-color: #F0F0F0; }')
 
         if not self.isSkipped:
-            keepAction = widgets.QAction(self)
+            keepAction = QAction(self)
             keepAction.setText(TEXT.UNKEEP_FOLDER if self.isKept else TEXT.KEEP_FOLDER)
 
         else:
             keepAction = None
 
-        skipAction = widgets.QAction(self)
+        skipAction = QAction(self)
         skipAction.setText(TEXT.DONT_SKIP_FOLDER if self.isSkipped else TEXT.SKIP_FOLDER)
 
         menu.addActions([act for act in [keepAction, skipAction] if act is not None])
