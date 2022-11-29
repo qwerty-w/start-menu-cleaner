@@ -5,8 +5,8 @@ from typing import Union
 
 
 DEFAULT_START_MENU_SHORTCUTS_DIRS = [
+    os.path.join(os.getenv('SystemDrive'), r'\ProgramData\Microsoft\Windows\Start Menu\Programs'),
     os.path.join(os.getenv('AppData'), r'Microsoft\Windows\Start Menu\Programs'),
-    os.path.join(os.getenv('SystemDrive'), r'\ProgramData\Microsoft\Windows\Start Menu\Programs')
 ]
 
 

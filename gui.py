@@ -1,11 +1,15 @@
 import os
+import ctypes
 from typing import Union
+from functools import partial
+
 from PyQt5 import QtWidgets as widgets
 from PyQt5 import QtCore as core
 from PyQt5 import QtGui as gui
 
 from app_text import TEXT
-from main import StartMenuShortcut, StartMenuFolder, StartMenuExtendedFolder, StartMenu
+from main import StartMenuShortcut, StartMenuFolder, StartMenuExtendedFolder, StartMenu,\
+    DEFAULT_START_MENU_SHORTCUTS_DIRS
 
 
 def wrapBold(string: str):
@@ -19,6 +23,23 @@ def wrapU(string: str):
 def clearHtmlTags(string: str):
     string = string[string.find('>') + 1:]
     return string[:string.find('<')]
+
+
+class FilenameValidation:
+    specialCharacters = [
+        '\\',
+        '/',
+        ':',
+        '*',
+        '?',
+        '<',
+        '>',
+        '|'
+    ]
+
+    @classmethod
+    def validate(cls, name: str):
+        return all(map(lambda ch: ch not in name, cls.specialCharacters))
 
 
 class Widget:
@@ -46,7 +67,7 @@ class ChooseFolderButton(Widget, widgets.QLabel):
     def mousePressEvent(self, event: gui.QMouseEvent) -> None:
         path = widgets.QFileDialog.getExistingDirectory(
             self,
-            'Choose a folder:',
+            TEXT.SELECT_FOLDER,
             options=widgets.QFileDialog.ShowDirsOnly
         )
 
@@ -91,8 +112,6 @@ class StartMenuShortcutGUI(Widget, widgets.QCheckBox):
 
         rawPath = core.QFileInfo(self.shortcut.path).symLinkTarget()
         self.targetPath = os.path.normpath(rawPath) if rawPath else None
-
-        self.unavailableIcon = gui.QIcon(r'icons\unavailable.png')  # todo: maybe remove
 
         super().__init__(*args, **kwargs)
 
@@ -242,6 +261,12 @@ class ShortcutsArea(Widget, widgets.QScrollArea):
 
         self.showWidgets()
 
+    def updateShortcuts(self):
+        self.folders = StartMenu.get_folders()
+        self.initWidget = widgets.QWidget()
+        self.initLayout = widgets.QVBoxLayout()
+        self.displayShortcuts()
+
 
 class ApplyToQuestionLabel(Widget, widgets.QLabel):
     pass
@@ -256,16 +281,131 @@ class ApplyToUncheckedRadioButton(Widget, widgets.QRadioButton):
         self.setChecked(True)
 
 
-def pop_empty_folders(folders: list[Union[StartMenuFolder, StartMenuExtendedFolder]]):
+class ForAllUsersNewShortcutDialogCheckbox(Widget, widgets.QCheckBox):
+    def initUi(self):
+        self.setText(TEXT.FOR_ALL_USERS)
+
+
+class NewShortcutNameInputDialog(Widget, widgets.QInputDialog):
+    def __init__(self, *args, **kwargs):
+        self._fixedSize = None
+
+        super().__init__(*args, **kwargs)
+
+        self.forAllUsersCheckbox = ForAllUsersNewShortcutDialogCheckbox(self)
+        self.setGeometryUi()
+
+    def initUi(self):
+        self.setInputMode(widgets.QInputDialog.TextInput)
+        self.setWindowFlag(core.Qt.WindowContextHelpButtonHint, False)
+        self.setModal(True)
+        self.setLabelText(TEXT.ENTER_NAME)
+        self.setWindowTitle(TEXT.NEW_SHORTCUT)
+        self.setFixedSize(core.QSize(300, 90))
+
+    def setGeometryUi(self):
+        self.forAllUsersCheckbox.setGeometry(210, 10, 120, 13)
+
+    def setFixedSize(self, a0: core.QSize) -> None:
+        self._fixedSize = a0
+
+        if self._fixedSize.height() == 90:
+            self._fixedSize.setHeight(91)
+
+    def resizeEvent(self, event: gui.QResizeEvent) -> None:
+        """
+        NOTICE: Overriding this method and self.setFixedSize needed because default
+                QInputDialog.setFixedSize does not work. It only changes width and
+                does not set fixed size, window remain resizable (I think because
+                self.exec() call self.setFixedSize(defaultQSize))
+        """
+        if self._fixedSize is not None and event.size() != self._fixedSize:
+            super().setFixedSize(self._fixedSize)
+
+
+class AddNewShortcutButton(Widget, widgets.QPushButton):
+    def __init__(self, mainWindow: widgets.QMainWindow, *args, **kwargs):
+        self.mainWindow = mainWindow
+        super().__init__(*args, **kwargs)
+
+    def initUi(self):
+        self.setIcon(gui.QIcon(r'icons\wmploc_474.ico'))
+        self.setStyleSheet("""
+        QPushButton {
+            color: #ffffff;
+            background-color: #EFEFF1; 
+            border: none;
+        }""")
+        self.setCursor(gui.QCursor(core.Qt.CursorShape.PointingHandCursor))
+
+    def mousePressEvent(self, event: gui.QMouseEvent) -> None:
+        if event.button() != 1:
+            return
+
+        targetPath = widgets.QFileDialog.getOpenFileName(
+            self,
+            TEXT.SELECT_FILE,
+        )[0]
+        if not targetPath:
+            return
+
+        dialog = NewShortcutNameInputDialog()
+        defaultCriticalBox = partial(
+            widgets.QMessageBox.critical,
+            dialog,
+            TEXT.ERROR,
+            buttons=widgets.QMessageBox.StandardButton.Ok
+        )
+
+        fileInfo = core.QFileInfo(targetPath)
+        iconProvider = widgets.QFileIconProvider()
+        dialog.setWindowIcon(iconProvider.icon(fileInfo))
+
+        code, name = dialog.exec(), dialog.textValue()
+        systemDir, userDir = DEFAULT_START_MENU_SHORTCUTS_DIRS
+
+        if not code:
+            return
+
+        if not name:
+            defaultCriticalBox(TEXT.NAME_CANT_BE_EMPTY)
+            return
+
+        if not FilenameValidation.validate(name):
+            defaultCriticalBox(
+                TEXT.CHARACTERS_CANT_BE_USED.format(
+                    characters=" ".join(FilenameValidation.specialCharacters)
+                )
+            )
+            return
+
+        if dialog.forAllUsersCheckbox.isChecked() and not ctypes.windll.shell32.IsUserAnAdmin():
+            defaultCriticalBox(TEXT.NEED_ADMIN_PRIVILEGES)
+            return
+
+        shortcutDir = systemDir if dialog.forAllUsersCheckbox.isChecked() else userDir
+        core.QFile(targetPath).link(os.path.join(shortcutDir, name + '.lnk'))
+        widgets.QMessageBox.information(
+            dialog,
+            TEXT.COMPLETE,
+            TEXT.SHORTCUT_CREATED,
+            widgets.QMessageBox.StandardButton.Ok
+        )
+        # self.mainWindow.shortcutsArea.updateShortcuts()  # make no sense, shortcut creating outside of folder
+
+def popEmptyFolders(folders: list[Union[StartMenuFolder, StartMenuExtendedFolder]]):
     return [folders.pop(index) for index, folder in enumerate(folders) if folder.is_empty()]
 
 
 class MainWindow(widgets.QMainWindow):
-    def __init__(self, folders: list[Union[StartMenuFolder, StartMenuExtendedFolder]]):
+    def __init__(self):
         super().__init__()
 
-        emptyFolders = pop_empty_folders(folders)
+        self.folders = StartMenu.get_folders()
+        self.emptyFolders = popEmptyFolders(self.folders)
         self.centralwidget = widgets.QWidget(self)
+
+        self.addNewShortcutButton = AddNewShortcutButton(self, self.centralwidget)
 
         self.moveOrDeleteGeneralWidget = widgets.QWidget(self.centralwidget)
         self.path2FolderLabel = ChooseFolderButton(self.moveOrDeleteGeneralWidget)
@@ -277,10 +417,10 @@ class MainWindow(widgets.QMainWindow):
         self.apply2Checked = ApplyToCheckedRadioButton(self.apply2QuestionGeneralWidget)
         self.apply2Unchecked = ApplyToUncheckedRadioButton(self.apply2QuestionGeneralWidget)
 
-        self.apply2EmptyFolders = ApplyToEmptyFoldersButton(emptyFolders, self.centralwidget)
+        self.apply2EmptyFolders = ApplyToEmptyFoldersButton(self.emptyFolders, self.centralwidget)
 
         self.applyButton = ApplyButton(self.centralwidget)
-        self.shortcutsArea = ShortcutsArea(folders, self.centralwidget)
+        self.shortcutsArea = ShortcutsArea(self.folders, self.centralwidget)
 
         self.setFixedSize(core.QSize(390, 317))
         self.setStyleSheet('MainWindow { background-color: #EFEFF1; }')
@@ -292,7 +432,7 @@ class MainWindow(widgets.QMainWindow):
     def retranslateUi(self):
         _translate = core.QCoreApplication.translate
 
-        self.path2FolderLabel.setText(wrapU(TEXT.CHOOSE_DIRECTORY))
+        self.path2FolderLabel.setText(wrapU(TEXT.SELECT_DIRECTORY))
         self.move2FolderRadioButton.setText(TEXT.MOVE_TO_DIRECTORY)
         self.deleteRadioButton.setText(TEXT.DELETE)
         self.apply2Question.setText(TEXT.APPLY_TO)
@@ -303,6 +443,8 @@ class MainWindow(widgets.QMainWindow):
         self.setWindowTitle(TEXT.WINDOW_TITLE)
 
     def setGeometryUi(self):
+        self.addNewShortcutButton.setGeometry(10, 5, 16, 16)
+
         self.moveOrDeleteGeneralWidget.setGeometry(core.QRect(275, 20, 110, 60))
         self.path2FolderLabel.setGeometry(core.QRect(0, 0, 110, 20))
         self.move2FolderRadioButton.setGeometry(core.QRect(0, 20, 110, 20))
@@ -315,12 +457,12 @@ class MainWindow(widgets.QMainWindow):
 
         self.apply2EmptyFolders.setGeometry(core.QRect(275, 150, 110, 30))
         self.applyButton.setGeometry(core.QRect(285, 270, 80, 31))
-        self.shortcutsArea.setGeometry(core.QRect(10, 10, 250, 290))  # -1px h
+        self.shortcutsArea.setGeometry(core.QRect(10, 25, 250, 275))  # -1px h
 
 
 def main():
     app = widgets.QApplication([])
-    window = MainWindow(StartMenu.get_folders())
+    window = MainWindow()
     window.show()
     app.exec()
 
