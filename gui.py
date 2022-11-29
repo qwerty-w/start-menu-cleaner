@@ -212,6 +212,7 @@ class StartMenuFolderGUI(Widget, widgets.QLabel):
         self.isSkipped = not self.isSkipped
 
         for shortcut in self.guiShortcuts:
+            shortcut.setChecked(False)
             shortcut.setDisabled(self.isSkipped)
 
         if self.isKept:
