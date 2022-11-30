@@ -7,7 +7,7 @@ class AppText:
     SELECT_FILE = 'Select a file:'
     MOVE_TO_DIRECTORY = 'Move to directory'
     DELETE = 'Delete'
-    APPLY_TO = 'Apply to'
+    APPLY_TO = 'Apply to:'
     SELECTED = 'Selected'
     UNSELECTED = 'Unselected'
     APPLY_TO_EMPTY_FOLDERS = 'Apply to empty\nfolders'
