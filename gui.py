@@ -8,7 +8,7 @@ from PyQt5 import QtCore as core
 from PyQt5 import QtGui as gui
 
 from app_text import TEXT
-from main import StartMenuShortcut, StartMenuFolder, StartMenuExtendedFolder, StartMenu,\
+from menu import StartMenuShortcut, StartMenuFolder, StartMenuExtendedFolder, StartMenu,\
     DEFAULT_START_MENU_SHORTCUTS_DIRS
 
 
