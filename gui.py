@@ -74,6 +74,7 @@ class ChooseFolderButton(Widget, widgets.QLabel):
         if not path:
             return
 
+        path = os.path.normpath(path)
         metrics = gui.QFontMetrics(self.font())
         text = metrics.elidedText(path, core.Qt.TextElideMode.ElideLeft, self.width())
         self.setText(text)
@@ -96,12 +97,74 @@ class ApplyToEmptyFoldersButton(Widget, widgets.QCheckBox):
         super().__init__(*args, **kwargs)
 
     def initUi(self):
-        self.setChecked(True)
         self.setToolTip(', '.join(f'"{x.name}"' for x in self.emptyFolders))
 
 
 class ApplyButton(Widget, widgets.QPushButton):
-    pass
+    def __init__(self, mainWindow: 'MainWindow', *args, **kwargs):
+        self.mainWindow = mainWindow
+
+        super().__init__(*args, **kwargs)
+
+    def mousePressEvent(self, event: gui.QMouseEvent) -> None:
+        if event.button() != 1:
+            return
+
+        foldersToClean: list[StartMenu.folder_to_clean] = []
+        for guiFolder in self.mainWindow.shortcutsArea.guiFolders:
+            if guiFolder.isSkipped:
+                continue
+
+            folderToClean = StartMenu.folder_to_clean(guiFolder.folder, guiFolder.isKept, [], [])
+            apply2Checked = self.mainWindow.apply2Checked.isChecked()
+
+            for guiShortcut in guiFolder.guiShortcuts:
+                if apply2Checked is guiShortcut.isChecked():
+                    folderToClean.shortcuts_to_apply.append(guiShortcut.shortcut)
+                else:
+                    folderToClean.shortcuts_to_save.append(guiShortcut.shortcut)
+
+            if not folderToClean.shortcuts_to_apply and folderToClean.is_kept:
+                continue
+
+            foldersToClean.append(folderToClean)
+
+        if self.mainWindow.apply2EmptyFolders.isChecked():
+            foldersToClean.extend(
+                StartMenu.folder_to_clean(f, False, [], []) for f in self.mainWindow.apply2EmptyFolders.emptyFolders
+            )
+
+        if self.mainWindow.move2FolderRadioButton.isChecked():
+            path = clearHtmlTags(self.mainWindow.path2FolderLabel.toolTip())
+
+            if not path:
+                widgets.QMessageBox.critical(
+                    self.parent(),
+                    TEXT.ERROR,
+                    TEXT.NEED_SELECT_DIRECTORY,
+                    widgets.QMessageBox.StandardButton.Ok
+                )
+                return
+
+            action = StartMenu.clean_action.move(path)
+            actionText = TEXT.MOVED
+        else:
+            action = StartMenu.clean_action.delete()
+            actionText = TEXT.DELETED
+
+        cleanedFolders, appliedShortcuts = StartMenu.clean(action, foldersToClean)
+        widgets.QMessageBox.information(
+            self.parent(),
+            TEXT.COMPLETE,
+            TEXT.APPLY_CLEANED.format(
+                cleanedFolders=cleanedFolders,
+                appliedShortcuts=appliedShortcuts,
+                actionText=actionText
+            ),
+            widgets.QMessageBox.StandardButton.Ok
+        )
+
+        update_window(self.mainWindow)
 
 
 class StartMenuShortcutGUI(Widget, widgets.QCheckBox):
@@ -156,38 +219,76 @@ class StartMenuFolderGUI(Widget, widgets.QLabel):
     def __init__(self,
                  folder: Union[StartMenuFolder, StartMenuExtendedFolder],
                  guiShortcuts: list[StartMenuShortcutGUI],
+                 area: 'ShortcutsArea',
                  *args,
                  **kwargs):
 
         self.folder = folder
         self.guiShortcuts = guiShortcuts
-        self.isKept = False
+        self.area = area
+
+        self.isKept = None
         self.keptStyleSheet = 'color: green;'
         self.notKeptStyleSheet = 'color: #54595d;'
-        self.isSkipped = False
 
-        super().__init__(*args, **kwargs)
+        self.isSkipped = None
+        self.isKeptBeforeSkipping = None
+
+        super().__init__(area, *args, **kwargs)
 
     def initUi(self):
         self.setText(self.folder.name)
-        self.setStyleSheet(self.notKeptStyleSheet)
+        self.setKeptState(True)
+        self.setSkippedState(False)
+
+    def setKeptState(self, value: bool):
+        self.isKept = value
+        self.setStyleSheet(self.keptStyleSheet if value else self.notKeptStyleSheet)
+
+    def setSkippedState(self, value: bool):
+        self.isSkipped = value
+
+        for shortcut in self.guiShortcuts:
+            if value:
+                shortcut.setChecked(False)
+            shortcut.setDisabled(value)
+
+        if value and self.isKept:
+            self.reverseKeptState()
+            self.isKeptBeforeSkipping = True
+
+        elif not value and self.isKeptBeforeSkipping:
+            self.reverseKeptState()
+            self.isKeptBeforeSkipping = None
+
+    def reverseKeptState(self):
+        self.setKeptState(not self.isKept)
+
+    def reverseSkippedState(self):
+        self.setSkippedState(not self.isSkipped)
 
     def contextMenuEvent(self, event: gui.QContextMenuEvent) -> None:
         menu = widgets.QMenu(self)
         menu.setStyleSheet('QMenu { color: black; background-color: white; }'
                            'QMenu::item:selected { color: black; background-color: #F0F0F0; }')
 
-        if not self.isSkipped:
-            keepAction = QAction(self)
-            keepAction.setText(TEXT.UNKEEP_FOLDER if self.isKept else TEXT.KEEP_FOLDER)
+        keepAction = QAction(self)
+        keepAction.setText(TEXT.UNKEEP_FOLDER if self.isKept else TEXT.KEEP_FOLDER)
 
-        else:
-            keepAction = None
+        keepAllFoldersAction = QAction(self)
+        allFoldersIsKept = self.area.allFoldersIsKept()
+        keepAllFoldersAction.setText(TEXT.UNKEEP_ALL_FOLDERS if allFoldersIsKept else TEXT.KEEP_ALL_FOLDERS)
 
         skipAction = QAction(self)
         skipAction.setText(TEXT.DONT_SKIP_FOLDER if self.isSkipped else TEXT.SKIP_FOLDER)
 
-        menu.addActions([act for act in [keepAction, skipAction] if act is not None])
+        actions = [
+            keepAction,
+            keepAllFoldersAction,
+            skipAction
+        ] if not self.isSkipped else [skipAction]
+
+        menu.addActions(actions)
         action = menu.exec(event.globalPos())
 
         if not action:
@@ -199,24 +300,12 @@ class StartMenuFolderGUI(Widget, widgets.QLabel):
         elif action is skipAction:
             self.reverseSkippedState()
 
-    def reverseKeptState(self):
-        self.isKept = not self.isKept
+        elif action is keepAllFoldersAction:
+            keptState = not allFoldersIsKept
 
-        if self.isKept:
-            self.setStyleSheet(self.keptStyleSheet)
-
-        else:
-            self.setStyleSheet(self.notKeptStyleSheet)
-
-    def reverseSkippedState(self):
-        self.isSkipped = not self.isSkipped
-
-        for shortcut in self.guiShortcuts:
-            shortcut.setChecked(False)
-            shortcut.setDisabled(self.isSkipped)
-
-        if self.isKept:
-            self.reverseKeptState()
+            for folder in self.area.guiFolders:
+                if folder.isKept is not keptState and not folder.isSkipped:
+                    folder.setKeptState(keptState)
 
     def mousePressEvent(self, event: gui.QMouseEvent):
         if event.button() == 1 and not self.isSkipped:
@@ -226,6 +315,8 @@ class StartMenuFolderGUI(Widget, widgets.QLabel):
 class ShortcutsArea(Widget, widgets.QScrollArea):
     def __init__(self, folders: list[Union[StartMenuFolder, StartMenuExtendedFolder]], *args, **kwargs):
         self.folders = folders
+        self.guiFolders: list[StartMenuFolderGUI] = []
+
         self.initWidget = widgets.QWidget()
         self.initLayout = widgets.QVBoxLayout()
 
@@ -241,6 +332,9 @@ class ShortcutsArea(Widget, widgets.QScrollArea):
             """
         )
         self.displayShortcuts()
+
+    def allFoldersIsKept(self) -> bool:
+        return all(folder.isKept for folder in self.guiFolders if not folder.isSkipped)
 
     def addWidget(self, widget: widgets.QWidget):
         self.initLayout.addWidget(widget)
@@ -260,13 +354,9 @@ class ShortcutsArea(Widget, widgets.QScrollArea):
                 self.addWidget(guiShortcut)
                 guiFolder.guiShortcuts.append(guiShortcut)
 
-        self.showWidgets()
+            self.guiFolders.append(guiFolder)
 
-    def updateShortcuts(self):
-        self.folders = StartMenu.get_folders()
-        self.initWidget = widgets.QWidget()
-        self.initLayout = widgets.QVBoxLayout()
-        self.displayShortcuts()
+        self.showWidgets()
 
 
 class ApplyToQuestionLabel(Widget, widgets.QLabel):
@@ -274,12 +364,12 @@ class ApplyToQuestionLabel(Widget, widgets.QLabel):
 
 
 class ApplyToCheckedRadioButton(Widget, widgets.QRadioButton):
-    pass
+    def initUi(self):
+        self.setChecked(True)
 
 
 class ApplyToUncheckedRadioButton(Widget, widgets.QRadioButton):
-    def initUi(self):
-        self.setChecked(True)
+    pass
 
 
 class ForAllUsersNewShortcutDialogCheckbox(Widget, widgets.QCheckBox):
@@ -325,7 +415,7 @@ class NewShortcutNameInputDialog(Widget, widgets.QInputDialog):
 
 
 class AddNewShortcutButton(Widget, widgets.QPushButton):
-    def __init__(self, mainWindow: widgets.QMainWindow, *args, **kwargs):
+    def __init__(self, mainWindow: 'MainWindow', *args, **kwargs):
         self.mainWindow = mainWindow
         super().__init__(*args, **kwargs)
 
@@ -338,6 +428,7 @@ class AddNewShortcutButton(Widget, widgets.QPushButton):
             border: none;
         }""")
         self.setCursor(gui.QCursor(core.Qt.CursorShape.PointingHandCursor))
+        self.setToolTip(TEXT.ADD_NEW_SHORTCUT_TOOL_TIP)
 
     def mousePressEvent(self, event: gui.QMouseEvent) -> None:
         if event.button() != 1:
@@ -381,7 +472,7 @@ class AddNewShortcutButton(Widget, widgets.QPushButton):
             return
 
         if dialog.forAllUsersCheckbox.isChecked() and not ctypes.windll.shell32.IsUserAnAdmin():
-            defaultCriticalBox(TEXT.NEED_ADMIN_PRIVILEGES)
+            defaultCriticalBox(TEXT.NEED_ADMIN_PRIVILEGES_FOR_ALL_USERS_SHORTCUT)
             return
 
         shortcutDir = systemDir if dialog.forAllUsersCheckbox.isChecked() else userDir
@@ -392,7 +483,7 @@ class AddNewShortcutButton(Widget, widgets.QPushButton):
             TEXT.SHORTCUT_CREATED,
             widgets.QMessageBox.StandardButton.Ok
         )
-        # self.mainWindow.shortcutsArea.updateShortcuts()  # make no sense, shortcut creating outside of folder
+
 
 def popEmptyFolders(folders: list[Union[StartMenuFolder, StartMenuExtendedFolder]]):
     return [folders.pop(index) for index, folder in enumerate(folders) if folder.is_empty()]
@@ -402,8 +493,8 @@ class MainWindow(widgets.QMainWindow):
     def __init__(self):
         super().__init__()
 
-        self.folders = StartMenu.get_folders()
-        self.emptyFolders = popEmptyFolders(self.folders)
+        folders = StartMenu.get_folders()
+        emptyFolders = popEmptyFolders(folders)
         self.centralwidget = widgets.QWidget(self)
 
         self.addNewShortcutButton = AddNewShortcutButton(self, self.centralwidget)
@@ -418,10 +509,10 @@ class MainWindow(widgets.QMainWindow):
         self.apply2Checked = ApplyToCheckedRadioButton(self.apply2QuestionGeneralWidget)
         self.apply2Unchecked = ApplyToUncheckedRadioButton(self.apply2QuestionGeneralWidget)
 
-        self.apply2EmptyFolders = ApplyToEmptyFoldersButton(self.emptyFolders, self.centralwidget)
+        self.apply2EmptyFolders = ApplyToEmptyFoldersButton(emptyFolders, self.centralwidget)
 
-        self.applyButton = ApplyButton(self.centralwidget)
-        self.shortcutsArea = ShortcutsArea(self.folders, self.centralwidget)
+        self.applyButton = ApplyButton(self, self.centralwidget)
+        self.shortcutsArea = ShortcutsArea(folders, self.centralwidget)
 
         self.setFixedSize(core.QSize(390, 317))
         self.setStyleSheet('MainWindow { background-color: #EFEFF1; }')
@@ -459,6 +550,13 @@ class MainWindow(widgets.QMainWindow):
         self.apply2EmptyFolders.setGeometry(core.QRect(275, 150, 110, 30))
         self.applyButton.setGeometry(core.QRect(285, 270, 80, 31))
         self.shortcutsArea.setGeometry(core.QRect(10, 25, 250, 275))  # -1px h
+
+
+def update_window(current_window: MainWindow):
+    current_window.close()
+    w = MainWindow()
+    w.show()
+    return w
 
 
 def main():

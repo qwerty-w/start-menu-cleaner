@@ -7,9 +7,9 @@ class AppText:
     SELECT_FILE = 'Select a file:'
     MOVE_TO_DIRECTORY = 'Move to directory'
     DELETE = 'Delete'
-    APPLY_TO = 'Apply to:'
-    SELECTED = 'Selected'
-    UNSELECTED = 'Unselected'
+    APPLY_TO = 'Apply to shortcuts:'
+    SELECTED = 'Checked'
+    UNSELECTED = 'Unchecked'
     APPLY_TO_EMPTY_FOLDERS = 'Apply to empty\nfolders'
     APPLY = 'Apply'
     WINDOW_TITLE = 'Start Menu Folders Cleaner'
@@ -25,9 +25,16 @@ class AppText:
     ERROR = 'Error'
     NAME_CANT_BE_EMPTY = 'Name can\'t be empty'
     CHARACTERS_CANT_BE_USED = 'Characters {characters} cannot be used'
-    NEED_ADMIN_PRIVILEGES = 'Need admin privileges'
+    NEED_ADMIN_PRIVILEGES_FOR_ALL_USERS_SHORTCUT = 'To add shortcut for all users need admin privileges'
     COMPLETE = 'Complete'
-    SHORTCUT_CREATED = 'Shortcut was successfully created'\
+    SHORTCUT_CREATED = 'Shortcut was successfully created'
+    KEEP_ALL_FOLDERS = 'Keep all folders'
+    UNKEEP_ALL_FOLDERS = 'Unkeep all folders'
+    APPLY_CLEANED = 'Were cleaned {cleanedFolders} folders and {appliedShortcuts} shortcuts were {actionText}'
+    NEED_SELECT_DIRECTORY = 'You have to select a directory to move the shortcuts to it'
+    MOVED = 'moved'
+    DELETED = 'deleted'
+    ADD_NEW_SHORTCUT_TOOL_TIP = 'Add new shortcut'
 
     def __getattr__(self, item):
         return QCoreApplication.translate('MainWindow', self.__dict__.get(item))
