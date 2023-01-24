@@ -415,10 +415,6 @@ class NewShortcutNameInputDialog(Widget, widgets.QInputDialog):
 
 
 class AddNewShortcutButton(Widget, widgets.QPushButton):
-    def __init__(self, mainWindow: 'MainWindow', *args, **kwargs):
-        self.mainWindow = mainWindow
-        super().__init__(*args, **kwargs)
-
     def initUi(self):
         self.setIcon(gui.QIcon(r'icons\wmploc_474.ico'))
         self.setStyleSheet("""
@@ -485,6 +481,29 @@ class AddNewShortcutButton(Widget, widgets.QPushButton):
         )
 
 
+class RefreshWindowButton(Widget, widgets.QPushButton):
+    def __init__(self, mainWindow: 'MainWindow', *args, **kwargs):
+        self.mainWindow = mainWindow
+        super().__init__(*args, **kwargs)
+
+    def initUi(self):
+        self.setIcon(gui.QIcon(r'icons\icons8-synchronize-50.png'))
+        self.setStyleSheet("""
+        QPushButton {
+            color: #ffffff;
+            background-color: #EFEFF1; 
+            border: none;
+        }""")
+        self.setCursor(gui.QCursor(core.Qt.CursorShape.PointingHandCursor))
+        self.setToolTip(TEXT.REFRESH_WINDOW_TOOL_TIP)
+
+    def mousePressEvent(self, event: gui.QMouseEvent) -> None:
+        if event.button() != 1:
+            return
+
+        update_window(self.mainWindow)
+
+
 def popEmptyFolders(folders: list[Union[StartMenuFolder, StartMenuExtendedFolder]]):
     return [folders.pop(index) for index, folder in enumerate(folders) if folder.is_empty()]
 
@@ -497,7 +516,8 @@ class MainWindow(widgets.QMainWindow):
         emptyFolders = popEmptyFolders(folders)
         self.centralwidget = widgets.QWidget(self)
 
-        self.addNewShortcutButton = AddNewShortcutButton(self, self.centralwidget)
+        self.addNewShortcutButton = AddNewShortcutButton(self.centralwidget)
+        self.refreshWindowButton = RefreshWindowButton(self, self.centralwidget)
 
         self.moveOrDeleteGeneralWidget = widgets.QWidget(self.centralwidget)
         self.path2FolderLabel = ChooseFolderButton(self.moveOrDeleteGeneralWidget)
@@ -536,6 +556,7 @@ class MainWindow(widgets.QMainWindow):
 
     def setGeometryUi(self):
         self.addNewShortcutButton.setGeometry(10, 5, 16, 16)
+        self.refreshWindowButton.setGeometry(32, 5, 16, 16)
 
         self.moveOrDeleteGeneralWidget.setGeometry(core.QRect(275, 20, 110, 60))
         self.path2FolderLabel.setGeometry(core.QRect(0, 0, 110, 20))
