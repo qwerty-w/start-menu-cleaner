@@ -36,6 +36,7 @@ class AppText:
     DELETED = 'deleted'
     ADD_NEW_SHORTCUT_TOOL_TIP = 'Add new shortcut'
     REFRESH_WINDOW_TOOL_TIP = 'Update shortcuts list'
+    NO_EMPTY_FOLDERS = 'No empty folders'
 
     def __getattr__(self, item):
         return QCoreApplication.translate('MainWindow', self.__dict__.get(item))

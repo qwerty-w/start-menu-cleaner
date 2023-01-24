@@ -97,8 +97,8 @@ class ApplyToEmptyFoldersButton(Widget, widgets.QCheckBox):
         super().__init__(*args, **kwargs)
 
     def initUi(self):
-        self.setToolTip(', '.join(f'"{x.name}"' for x in self.emptyFolders))
-
+        tip = TEXT.NO_EMPTY_FOLDERS if not self.emptyFolders else ', '.join(f'"{x.name}"' for x in self.emptyFolders)
+        self.setToolTip(tip)
 
 class ApplyButton(Widget, widgets.QPushButton):
     def __init__(self, mainWindow: 'MainWindow', *args, **kwargs):
