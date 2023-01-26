@@ -505,7 +505,17 @@ class RefreshWindowButton(Widget, widgets.QPushButton):
 
 
 def popEmptyFolders(folders: list[Union[StartMenuFolder, StartMenuExtendedFolder]]):
-    return [folders.pop(index) for index, folder in enumerate(folders) if folder.is_empty()]
+    e = []
+    index = 0
+
+    while index < len(folders):
+        if folders[index].is_empty():
+            e.append(folders.pop(index))
+            continue
+
+        index += 1
+
+    return e
 
 
 class MainWindow(widgets.QMainWindow):
