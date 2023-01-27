@@ -9,7 +9,7 @@ from PyQt5 import QtGui as gui
 
 from app_text import TEXT
 from menu import StartMenuShortcut, StartMenuFolder, StartMenuExtendedFolder, StartMenu,\
-    DEFAULT_START_MENU_SHORTCUTS_DIRS
+    DEFAULT_START_MENU_SHORTCUTS_DIRS, get_inaccessible_directories
 
 
 def wrapBold(string: str):
@@ -99,6 +99,7 @@ class ApplyToEmptyFoldersButton(Widget, widgets.QCheckBox):
     def initUi(self):
         tip = TEXT.NO_EMPTY_FOLDERS if not self.emptyFolders else ', '.join(f'"{x.name}"' for x in self.emptyFolders)
         self.setToolTip(tip)
+
 
 class ApplyButton(Widget, widgets.QPushButton):
     def __init__(self, mainWindow: 'MainWindow', *args, **kwargs):
@@ -450,7 +451,7 @@ class AddNewShortcutButton(Widget, widgets.QPushButton):
         dialog.setWindowIcon(iconProvider.icon(fileInfo))
 
         code, name = dialog.exec(), dialog.textValue()
-        systemDir, userDir = DEFAULT_START_MENU_SHORTCUTS_DIRS
+        systemDir, userDir = DEFAULT_START_MENU_SHORTCUTS_DIRS['system'], DEFAULT_START_MENU_SHORTCUTS_DIRS['user']
 
         if not code:
             return
@@ -468,7 +469,7 @@ class AddNewShortcutButton(Widget, widgets.QPushButton):
             return
 
         if dialog.forAllUsersCheckbox.isChecked() and not ctypes.windll.shell32.IsUserAnAdmin():
-            defaultCriticalBox(TEXT.NEED_ADMIN_PRIVILEGES_FOR_ALL_USERS_SHORTCUT)
+            defaultCriticalBox(TEXT.NEED_ADMIN_RIGHTS_FOR_CREATE_ALL_USERS_SHORTCUT)
             return
 
         shortcutDir = systemDir if dialog.forAllUsersCheckbox.isChecked() else userDir
@@ -590,9 +591,39 @@ def update_window(current_window: MainWindow):
     return w
 
 
+def check_inaccessible_dirs(warning_parent: widgets.QWidget):
+    sys_d = DEFAULT_START_MENU_SHORTCUTS_DIRS['system']
+    i_dirs = get_inaccessible_directories()
+
+    if not i_dirs:
+        return
+
+    for d in i_dirs:
+        if d == sys_d:
+            widgets.QMessageBox.warning(
+                warning_parent,
+                TEXT.NO_ACCESS_WARNING,
+                TEXT.NEED_ADMIN_RIGHTS_FOR_ALL_USERS_SM_PATH.format(sys_d=sys_d),
+                widgets.QMessageBox.StandardButton.Ok
+            )
+            break
+
+    else:
+        text = TEXT.NO_ACCESS_TO_DIRS if len(i_dirs) > 1 else TEXT.NO_ACCESS_TO_DIR
+        widgets.QMessageBox.warning(
+            warning_parent,
+            TEXT.NO_ACCESS_WARNING,
+            text.format(dirs='\n'.join(i_dirs)),
+            widgets.QMessageBox.StandardButton.Ok
+        )
+
+
 def main():
     app = widgets.QApplication([])
     window = MainWindow()
+
+    check_inaccessible_dirs(window)
+
     window.show()
     app.exec()
 

@@ -3,19 +3,30 @@ import struct
 import locale
 import logging
 from typing import Union
-from collections import namedtuple
 from dataclasses import dataclass
 from abc import ABC, abstractmethod
 
 
-from __init__ import *  # fixme:
-
-
 LOG = logging.getLogger('app')
-DEFAULT_START_MENU_SHORTCUTS_DIRS = [
-    os.path.join(os.getenv('SystemDrive'), r'\ProgramData\Microsoft\Windows\Start Menu\Programs'),
-    os.path.join(os.getenv('AppData'), r'Microsoft\Windows\Start Menu\Programs')
-]
+DEFAULT_START_MENU_SHORTCUTS_DIRS = {
+    'system': os.path.join(os.getenv('SystemDrive'), r'\ProgramData\Microsoft\Windows\Start Menu\Programs'),
+    'user': os.path.join(os.getenv('AppData'), r'Microsoft\Windows\Start Menu\Programs'),
+}
+
+
+def get_inaccessible_directories() -> list[str]:
+    inaccessible_directories = []
+
+    for d_path in DEFAULT_START_MENU_SHORTCUTS_DIRS.values():
+        t_path = os.path.join(d_path, 'tmp.tmp')
+
+        try:
+            open(t_path, mode='w')
+            os.remove(t_path)
+        except WindowsError:
+            inaccessible_directories.append(d_path)
+
+    return inaccessible_directories
 
 
 class SMObject(ABC):
@@ -60,11 +71,11 @@ class StartMenuShortcut(SMObject):
         return self.path[len(fpath) + 1:]
 
     def get_fpath(self):  # get SM folder path
-        for p in DEFAULT_START_MENU_SHORTCUTS_DIRS:
+        for p in DEFAULT_START_MENU_SHORTCUTS_DIRS.values():
             if os.path.commonpath([p, self.path]) == p:
                 return p
 
-        raise ValueError('shortcut.path does not belong to DEFAULT_START_MENU_SHORTCUTS_DIRS')
+        raise ValueError('StartMenuShortcut.path does not belong to any dir from DEFAULT_START_MENU_SHORTCUTS_DIRS')
 
     def move(self, path_to_directory: str):
         new_p = os.path.join(path_to_directory, self.name + self.ext)
@@ -240,7 +251,7 @@ class StartMenu:
     def get_folders() -> list[Union[StartMenuFolder, StartMenuExtendedFolder]]:
         folders = []
 
-        for sm_dir in DEFAULT_START_MENU_SHORTCUTS_DIRS:
+        for sm_dir in DEFAULT_START_MENU_SHORTCUTS_DIRS.values():
             for item in os.listdir(sm_dir):
                 full_path = os.path.join(sm_dir, item)
 
