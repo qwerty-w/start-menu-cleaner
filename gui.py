@@ -8,8 +8,7 @@ from PyQt5 import QtCore as core
 from PyQt5 import QtGui as gui
 
 from app_text import TEXT
-from menu import StartMenuShortcut, StartMenuFolder, StartMenuExtendedFolder, StartMenu,\
-    DEFAULT_START_MENU_SHORTCUTS_DIRS, get_inaccessible_directories
+from menu import StartMenuShortcut, StartMenuFolder, StartMenuExtendedFolder, StartMenu
 
 
 def wrapBold(string: str):
@@ -451,7 +450,7 @@ class AddNewShortcutButton(Widget, widgets.QPushButton):
         dialog.setWindowIcon(iconProvider.icon(fileInfo))
 
         code, name = dialog.exec(), dialog.textValue()
-        systemDir, userDir = DEFAULT_START_MENU_SHORTCUTS_DIRS['system'], DEFAULT_START_MENU_SHORTCUTS_DIRS['user']
+        systemDir, userDir = StartMenu.default_dirs.system, StartMenu.default_dirs.user
 
         if not code:
             return
@@ -586,24 +585,25 @@ class MainWindow(widgets.QMainWindow):
 
 def update_window(current_window: MainWindow):
     current_window.close()
+
+    StartMenu.update()
     w = MainWindow()
     w.show()
     return w
 
 
-def check_inaccessible_dirs(warning_parent: widgets.QWidget):
-    sys_d = DEFAULT_START_MENU_SHORTCUTS_DIRS['system']
-    i_dirs = get_inaccessible_directories()
+def warn_inaccessible_dirs(warning_parent: widgets.QWidget):
+    i_dirs = [d for d in StartMenu.default_dirs if not d.is_accessible]
 
     if not i_dirs:
         return
 
     for d in i_dirs:
-        if d == sys_d:
+        if d is StartMenu.default_dirs.system:
             widgets.QMessageBox.warning(
                 warning_parent,
                 TEXT.NO_ACCESS_WARNING,
-                TEXT.NEED_ADMIN_RIGHTS_FOR_ALL_USERS_SM_PATH.format(sys_d=sys_d),
+                TEXT.NEED_ADMIN_RIGHTS_FOR_ALL_USERS_SM_PATH.format(sys_d=StartMenu.default_dirs.system.path),
                 widgets.QMessageBox.StandardButton.Ok
             )
             break
@@ -613,7 +613,7 @@ def check_inaccessible_dirs(warning_parent: widgets.QWidget):
         widgets.QMessageBox.warning(
             warning_parent,
             TEXT.NO_ACCESS_WARNING,
-            text.format(dirs='\n'.join(i_dirs)),
+            text.format(dirs='\n'.join(d.path for d in i_dirs)),
             widgets.QMessageBox.StandardButton.Ok
         )
 
@@ -622,7 +622,7 @@ def main():
     app = widgets.QApplication([])
     window = MainWindow()
 
-    check_inaccessible_dirs(window)
+    warn_inaccessible_dirs(window)
 
     window.show()
     app.exec()

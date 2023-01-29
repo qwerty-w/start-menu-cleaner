@@ -4,29 +4,11 @@ import locale
 import logging
 from typing import Union
 from dataclasses import dataclass
+from collections import namedtuple
 from abc import ABC, abstractmethod
 
 
 LOG = logging.getLogger('app')
-DEFAULT_START_MENU_SHORTCUTS_DIRS = {
-    'system': os.path.join(os.getenv('SystemDrive'), r'\ProgramData\Microsoft\Windows\Start Menu\Programs'),
-    'user': os.path.join(os.getenv('AppData'), r'Microsoft\Windows\Start Menu\Programs'),
-}
-
-
-def get_inaccessible_directories() -> list[str]:
-    inaccessible_directories = []
-
-    for d_path in DEFAULT_START_MENU_SHORTCUTS_DIRS.values():
-        t_path = os.path.join(d_path, 'tmp.tmp')
-
-        try:
-            open(t_path, mode='w')
-            os.remove(t_path)
-        except WindowsError:
-            inaccessible_directories.append(d_path)
-
-    return inaccessible_directories
 
 
 class SMObject(ABC):
@@ -71,9 +53,9 @@ class StartMenuShortcut(SMObject):
         return self.path[len(fpath) + 1:]
 
     def get_fpath(self):  # get SM folder path
-        for p in DEFAULT_START_MENU_SHORTCUTS_DIRS.values():
-            if os.path.commonpath([p, self.path]) == p:
-                return p
+        for d in StartMenu.default_dirs:
+            if os.path.commonpath([d.path, self.path]) == d.path:
+                return d.path
 
         raise ValueError('StartMenuShortcut.path does not belong to any dir from DEFAULT_START_MENU_SHORTCUTS_DIRS')
 
@@ -188,7 +170,7 @@ class StartMenuFolder(SMFolder):
         return type(self)(self.path, shortcuts=self.shortcuts)
 
 
-class StartMenuExtendedFolder(SMFolder):
+class StartMenuExtendedFolder(SMFolder):  # folder which exists in few start menu dirs
     def __init__(self, folders: list[Union[StartMenuFolder, 'StartMenuExtendedFolder']]):
         self.folders = []
         self.name = folders[0].name
@@ -198,12 +180,12 @@ class StartMenuExtendedFolder(SMFolder):
             if self.name != folder.name:
                 raise ValueError('folders name must be same')
 
+            self.shortcuts.extend(folder.shortcuts)
+
             if isinstance(folder, self.__class__):
                 self.folders.extend(folder.folders)
-                continue
-
-            self.folders.append(folder)
-            self.shortcuts.extend(folder.shortcuts)
+            else:
+                self.folders.append(folder)
 
 
 class _CleanAction:
@@ -243,17 +225,57 @@ class _FolderToClean:
     shortcuts_to_save: list[StartMenuShortcut]
 
 
+class StartMenuDir:
+    def __init__(self, path: str, type: str):
+        self.path = path
+        self.type = type
+        self.is_accessible = self._check_on_accessible()
+
+    def _check_on_accessible(self) -> bool:
+        tmp_f = os.path.join(self.path, 'tmp.tmp')
+
+        try:
+            open(tmp_f, mode='w')
+            os.remove(tmp_f)
+        except WindowsError as e:
+            return False
+
+        return True
+
+    def update_accessibility(self):
+        self.is_accessible = self._check_on_accessible()
+
+
 class StartMenu:
     clean_action = _CleanAction
     folder_to_clean = _FolderToClean
 
-    @staticmethod
-    def get_folders() -> list[Union[StartMenuFolder, StartMenuExtendedFolder]]:
+    default_dirs = namedtuple('_SMDirs', 'system user')(
+        StartMenuDir(
+            os.path.join(os.getenv('SystemDrive'), r'\ProgramData\Microsoft\Windows\Start Menu\Programs'),
+            'system'
+        ),
+        StartMenuDir(
+            os.path.join(os.getenv('AppData'), r'Microsoft\Windows\Start Menu\Programs'),
+            'user'
+        )
+    )
+
+    @classmethod
+    def update(cls):
+        for d in cls.default_dirs:
+            d.update_accessibility()
+
+    @classmethod
+    def get_folders(cls) -> list[Union[StartMenuFolder, StartMenuExtendedFolder]]:
         folders = []
 
-        for sm_dir in DEFAULT_START_MENU_SHORTCUTS_DIRS.values():
-            for item in os.listdir(sm_dir):
-                full_path = os.path.join(sm_dir, item)
+        for sm_dir in cls.default_dirs:
+            if not sm_dir.is_accessible:
+                continue
+
+            for item in os.listdir(sm_dir.path):
+                full_path = os.path.join(sm_dir.path, item)
 
                 if not os.path.isdir(full_path):
                     continue
@@ -261,7 +283,7 @@ class StartMenu:
                 new_folder = StartMenuFolder(path=full_path)
                 for index, folder in enumerate(folders):
                     if folder.name == new_folder.name:
-                        folders[index:index + 1] = [StartMenuExtendedFolder([folder, new_folder])]
+                        folders[index] = StartMenuExtendedFolder([folder, new_folder])
                         break
 
                 else:
