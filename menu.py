@@ -26,6 +26,27 @@ def safe_mkdirs(p: str):
         return 1
 
 
+class StartMenuDir:
+    def __init__(self, path: str, type: str):
+        self.path = path
+        self.type = type
+        self.is_accessible = self._check_on_accessible()
+
+    def _check_on_accessible(self) -> bool:
+        tmp_f = os.path.join(self.path, 'tmp.tmp')
+
+        try:
+            open(tmp_f, mode='w')
+            os.remove(tmp_f)
+        except WindowsError:
+            return False
+
+        return True
+
+    def update_accessibility(self):
+        self.is_accessible = self._check_on_accessible()
+
+
 class SMObject(ABC):
     path: str
     name: str
@@ -37,6 +58,94 @@ class SMObject(ABC):
     @abstractmethod
     def delete(self):
         ...
+
+
+class SMFolder(SMObject):
+    name: str
+    shortcuts: list['StartMenuShortcut']
+
+    def is_empty(self):
+        return len(self.shortcuts) == 0
+
+    @staticmethod
+    def _safe_file_move(src: str, dst_dir: str):
+        try:
+            os.rename(src, os.path.join(dst_dir, os.path.basename(src)))
+        except FileExistsError:
+            os.remove(src)
+
+    def _recursion_move(self, dir_out: str, dir_in: str):
+        """
+        Move the shortcuts separately, not the entire folder as a whole. Otherwise,
+        the built-in service shortcuts with translated names may not be displayed
+        correctly.
+        """
+        for entry in os.scandir(dir_out):
+            entry: os.DirEntry
+
+            if entry.is_dir():
+                new_dir_in = os.path.join(dir_in, entry.name)
+                safe_mkdir(new_dir_in)
+                self._recursion_move(entry.path, new_dir_in)
+                continue
+
+            self._safe_file_move(entry.path, dir_in)
+
+    def move(self, path_to_directory: str):
+        new_path = os.path.join(path_to_directory, self.name)
+        safe_mkdir(new_path)
+        self._recursion_move(self.path, new_path)
+        self.delete()
+        self.path = new_path
+
+    def _safe_delete(self):
+        os.rmdir(self.path)
+
+    def delete(self):
+        self._safe_delete()
+
+
+class StartMenuFolder(SMFolder):
+    def __init__(self, path: str, *, shortcuts: list['StartMenuShortcut'] = None):
+        self.path: str = path
+        self.name = os.path.basename(path)
+        self.shortcuts = self._get_shortcuts() if not shortcuts else shortcuts
+
+    def _get_shortcuts(self) -> list['StartMenuShortcut']:
+        return [
+            StartMenuShortcut(os.path.join(dir_data[0], sc))
+            for dir_data in list(os.walk(self.path))
+            for sc in dir_data[2] if os.path.splitext(sc)[-1] in ('.lnk', '.url')
+        ]
+
+    def update_shortcuts(self):
+        self.shortcuts = self._get_shortcuts()
+
+    def __repr__(self, indent: int = 4):
+        indent_text = ' ' * indent
+        # first \n need for correct display print(list[StartMenuFolder])
+        return f'\n{self.name}\n' + '\n'.join(indent_text + shortcut.name for shortcut in self.shortcuts)
+
+    def copy(self):
+        return type(self)(self.path, shortcuts=self.shortcuts)
+
+
+class StartMenuExtendedFolder(SMFolder):  # folder which exists in few start menu dirs
+    def __init__(self, folders: list[SMFolder]):
+        self.folders = []
+        self.name = folders[0].name
+        self.shortcuts = []
+
+        for index, folder in enumerate(folders):
+            if self.name != folder.name:
+                raise ValueError('folders name must be same')
+
+            self.shortcuts.extend(folder.shortcuts)
+
+            if isinstance(folder, self.__class__):
+                self.folders.extend(folder.folders)
+            else:
+                self.folders.append(folder)
 
 
 class StartMenuShortcut(SMObject):
@@ -99,94 +208,6 @@ class StartMenuShortcut(SMObject):
             return content[-1].decode('utf-16' if len(content) > 1 else locale.getdefaultlocale()[1])
 
 
-class SMFolder(SMObject):
-    name: str
-    shortcuts: list[StartMenuShortcut]
-
-    def is_empty(self):
-        return len(self.shortcuts) == 0
-
-    @staticmethod
-    def _safe_file_move(src: str, dst_dir: str):
-        try:
-            os.rename(src, os.path.join(dst_dir, os.path.basename(src)))
-        except FileExistsError:
-            os.remove(src)
-
-    def _recursion_move(self, dir_out: str, dir_in: str):
-        """
-        Move the shortcuts separately, not the entire folder as a whole. Otherwise,
-        the built-in service shortcuts with translated names may not be displayed
-        correctly.
-        """
-        for entry in os.scandir(dir_out):
-            entry: os.DirEntry
-
-            if entry.is_dir():
-                new_dir_in = os.path.join(dir_in, entry.name)
-                safe_mkdir(new_dir_in)
-                self._recursion_move(entry.path, new_dir_in)
-                continue
-
-            self._safe_file_move(entry.path, dir_in)
-
-    def move(self, path_to_directory: str):
-        new_path = os.path.join(path_to_directory, self.name)
-        safe_mkdir(new_path)
-        self._recursion_move(self.path, new_path)
-        self.delete()
-        self.path = new_path
-
-    def _safe_delete(self):
-        os.rmdir(self.path)
-
-    def delete(self):
-        self._safe_delete()
-
-
-class StartMenuFolder(SMFolder):
-    def __init__(self, path: str, *, shortcuts: list[StartMenuShortcut] = None):
-        self.path: str = path
-        self.name = os.path.basename(path)
-        self.shortcuts = self._get_shortcuts() if not shortcuts else shortcuts
-
-    def _get_shortcuts(self) -> list[StartMenuShortcut]:
-        return [
-            StartMenuShortcut(os.path.join(dir_data[0], sc))
-            for dir_data in list(os.walk(self.path))
-            for sc in dir_data[2] if os.path.splitext(sc)[-1] in ('.lnk', '.url')
-        ]
-
-    def update_shortcuts(self):
-        self.shortcuts = self._get_shortcuts()
-
-    def __repr__(self, indent: int = 4):
-        indent_text = ' ' * indent
-        # first \n need for correct display print(list[StartMenuFolder])
-        return f'\n{self.name}\n' + '\n'.join(indent_text + shortcut.name for shortcut in self.shortcuts)
-
-    def copy(self):
-        return type(self)(self.path, shortcuts=self.shortcuts)
-
-
-class StartMenuExtendedFolder(SMFolder):  # folder which exists in few start menu dirs
-    def __init__(self, folders: list[SMFolder]):
-        self.folders = []
-        self.name = folders[0].name
-        self.shortcuts = []
-
-        for index, folder in enumerate(folders):
-            if self.name != folder.name:
-                raise ValueError('folders name must be same')
-
-            self.shortcuts.extend(folder.shortcuts)
-
-            if isinstance(folder, self.__class__):
-                self.folders.extend(folder.folders)
-            else:
-                self.folders.append(folder)
-
-
 class _CleanAction:
     MOVE = 0
     DELETE = 1
@@ -222,27 +243,6 @@ class _FolderToClean:
     is_kept: bool
     shortcuts_to_apply: list[StartMenuShortcut]
     shortcuts_to_save: list[StartMenuShortcut]
-
-
-class StartMenuDir:
-    def __init__(self, path: str, type: str):
-        self.path = path
-        self.type = type
-        self.is_accessible = self._check_on_accessible()
-
-    def _check_on_accessible(self) -> bool:
-        tmp_f = os.path.join(self.path, 'tmp.tmp')
-
-        try:
-            open(tmp_f, mode='w')
-            os.remove(tmp_f)
-        except WindowsError:
-            return False
-
-        return True
-
-    def update_accessibility(self):
-        self.is_accessible = self._check_on_accessible()
 
 
 class StartMenu:
