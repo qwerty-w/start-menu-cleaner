@@ -228,7 +228,7 @@ class StartMenuFolderGUI(Widget, widgets.QLabel):
         self.area = area
 
         self.isKept = None
-        self.keptStyleSheet = 'color: green;'
+        self.keptStyleSheet = 'color: #228BE6;'
         self.notKeptStyleSheet = 'color: #54595d;'
 
         self.isSkipped = None
