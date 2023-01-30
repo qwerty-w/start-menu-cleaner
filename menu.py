@@ -2,7 +2,6 @@ import os
 import struct
 import locale
 import logging
-from typing import Union
 from dataclasses import dataclass
 from collections import namedtuple
 from abc import ABC, abstractmethod
@@ -171,7 +170,7 @@ class StartMenuFolder(SMFolder):
 
 
 class StartMenuExtendedFolder(SMFolder):  # folder which exists in few start menu dirs
-    def __init__(self, folders: list[Union[StartMenuFolder, 'StartMenuExtendedFolder']]):
+    def __init__(self, folders: list[SMFolder]):
         self.folders = []
         self.name = folders[0].name
         self.shortcuts = []
@@ -219,7 +218,7 @@ class _CleanAction:
 
 @dataclass
 class _FolderToClean:
-    folder: Union[StartMenuFolder, StartMenuExtendedFolder]
+    folder: SMFolder
     is_kept: bool
     shortcuts_to_apply: list[StartMenuShortcut]
     shortcuts_to_save: list[StartMenuShortcut]
@@ -267,7 +266,7 @@ class StartMenu:
             d.update_accessibility()
 
     @classmethod
-    def get_folders(cls) -> list[Union[StartMenuFolder, StartMenuExtendedFolder]]:
+    def get_folders(cls) -> list[SMFolder]:
         folders = []
 
         for sm_dir in cls.default_dirs:

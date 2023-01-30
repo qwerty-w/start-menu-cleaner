@@ -1,6 +1,5 @@
 import os
 import ctypes
-from typing import Union
 from functools import partial
 
 from PyQt5 import QtWidgets as widgets
@@ -8,7 +7,7 @@ from PyQt5 import QtCore as core
 from PyQt5 import QtGui as gui
 
 from app_text import TEXT
-from menu import StartMenuShortcut, StartMenuFolder, StartMenuExtendedFolder, StartMenu
+from menu import StartMenuShortcut, SMFolder, StartMenuFolder, StartMenuExtendedFolder, StartMenu
 
 
 def wrapBold(string: str):
@@ -90,7 +89,7 @@ class DeleteRadioButton(Widget, widgets.QRadioButton):
 
 
 class ApplyToEmptyFoldersButton(Widget, widgets.QCheckBox):
-    def __init__(self, emptyFolders: list[Union[StartMenuFolder, StartMenuExtendedFolder]], *args, **kwargs):
+    def __init__(self, emptyFolders: list[SMFolder], *args, **kwargs):
         self.emptyFolders = emptyFolders
 
         super().__init__(*args, **kwargs)
@@ -217,7 +216,7 @@ class StartMenuShortcutGUI(Widget, widgets.QCheckBox):
 
 class StartMenuFolderGUI(Widget, widgets.QLabel):
     def __init__(self,
-                 folder: Union[StartMenuFolder, StartMenuExtendedFolder],
+                 folder: SMFolder,
                  guiShortcuts: list[StartMenuShortcutGUI],
                  area: 'ShortcutsArea',
                  *args,
@@ -313,7 +312,7 @@ class StartMenuFolderGUI(Widget, widgets.QLabel):
 
 
 class ShortcutsArea(Widget, widgets.QScrollArea):
-    def __init__(self, folders: list[Union[StartMenuFolder, StartMenuExtendedFolder]], *args, **kwargs):
+    def __init__(self, folders: list[SMFolder], *args, **kwargs):
         self.folders = folders
         self.guiFolders: list[StartMenuFolderGUI] = []
 
@@ -504,7 +503,7 @@ class RefreshWindowButton(Widget, widgets.QPushButton):
         update_window(self.mainWindow)
 
 
-def popEmptyFolders(folders: list[Union[StartMenuFolder, StartMenuExtendedFolder]]):
+def popEmptyFolders(folders: list[SMFolder]):
     e = []
     index = 0
 
