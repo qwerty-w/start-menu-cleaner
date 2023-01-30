@@ -362,7 +362,8 @@ class ShortcutsArea(Widget, widgets.QScrollArea):
 
 
 class ApplyToQuestionLabel(Widget, widgets.QLabel):
-    pass
+    def initUi(self):
+        self.setStyleSheet('color: #54595d;')
 
 
 class ApplyToCheckedRadioButton(Widget, widgets.QRadioButton):
