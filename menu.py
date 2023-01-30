@@ -10,6 +10,22 @@ from abc import ABC, abstractmethod
 LOG = logging.getLogger('app')
 
 
+def safe_mkdir(p: str):
+    try:
+        os.mkdir(p)
+        return 0
+    except FileExistsError:
+        return 1
+
+
+def safe_mkdirs(p: str):
+    try:
+        os.makedirs(p)
+        return 0
+    except FileExistsError:
+        return 1
+
+
 class SMObject(ABC):
     path: str
     name: str
@@ -21,22 +37,6 @@ class SMObject(ABC):
     @abstractmethod
     def delete(self):
         ...
-
-    @staticmethod
-    def _safe_mkdir(p: str):
-        try:
-            os.mkdir(p)
-            return 0
-        except FileExistsError:
-            return 1
-
-    @staticmethod
-    def _safe_mkdirs(p: str):
-        try:
-            os.makedirs(p)
-            return 0
-        except FileExistsError:
-            return 1
 
 
 class StartMenuShortcut(SMObject):
@@ -66,7 +66,7 @@ class StartMenuShortcut(SMObject):
     def relative_move(self, path_to_directory: str):
         new_path_to_dir = os.path.join(path_to_directory, os.path.split(self.get_rpath())[0])
         if not os.path.exists(new_path_to_dir):
-            self._safe_mkdirs(new_path_to_dir)
+            safe_mkdirs(new_path_to_dir)
 
         self.move(new_path_to_dir)
 
@@ -124,7 +124,7 @@ class SMFolder(SMObject):
 
             if entry.is_dir():
                 new_dir_in = os.path.join(dir_in, entry.name)
-                self._safe_mkdir(new_dir_in)
+                safe_mkdir(new_dir_in)
                 self._recursion_move(entry.path, new_dir_in)
                 continue
 
@@ -132,7 +132,7 @@ class SMFolder(SMObject):
 
     def move(self, path_to_directory: str):
         new_path = os.path.join(path_to_directory, self.name)
-        self._safe_mkdir(new_path)
+        safe_mkdir(new_path)
         self._recursion_move(self.path, new_path)
         self.delete()
         self.path = new_path
@@ -236,7 +236,7 @@ class StartMenuDir:
         try:
             open(tmp_f, mode='w')
             os.remove(tmp_f)
-        except WindowsError as e:
+        except WindowsError:
             return False
 
         return True
