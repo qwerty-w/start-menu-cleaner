@@ -7,7 +7,7 @@ from PyQt5 import QtCore as core
 from PyQt5 import QtGui as gui
 
 from app_text import TEXT
-from menu import StartMenuShortcut, SMFolder, StartMenuFolder, StartMenuExtendedFolder, StartMenu
+from menu import StartMenuShortcut, SMFolder, StartMenu
 
 
 def wrapBold(string: str):

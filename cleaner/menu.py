@@ -2,9 +2,9 @@ import os
 import struct
 import locale
 import logging
+from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from collections import namedtuple
-from abc import ABC, abstractmethod
 
 
 LOG = logging.getLogger('app')
