@@ -551,6 +551,7 @@ class MainWindow(widgets.QMainWindow):
         self.setCentralWidget(self.centralwidget)
         self.retranslateUi()
         self.setGeometryUi()
+        self.setWindowIcon(gui.QIcon('icons/menu.png'))
         core.QMetaObject.connectSlotsByName(self)
 
     def retranslateUi(self):

@@ -12,7 +12,7 @@ class AppText:
     UNSELECTED = 'Unchecked'
     APPLY_TO_EMPTY_FOLDERS = 'Apply to empty\nfolders'
     APPLY = 'Apply'
-    WINDOW_TITLE = 'Start Menu Folders Cleaner'
+    WINDOW_TITLE = 'Start Menu Cleaner'
     OPEN_SHORTCUT_PATH = 'Open shortcut path in explorer'
     OPEN_TARGET_PATH = 'Open target path in explorer'
     KEEP_FOLDER = 'Keep folder'
