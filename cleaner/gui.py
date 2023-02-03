@@ -6,8 +6,8 @@ from PyQt5 import QtWidgets as widgets
 from PyQt5 import QtCore as core
 from PyQt5 import QtGui as gui
 
-from app_text import TEXT
-from menu import StartMenuShortcut, SMFolder, StartMenu
+from .app_text import TEXT
+from .menu import StartMenuShortcut, SMFolder, StartMenu
 
 
 def wrapBold(string: str):
@@ -619,17 +619,3 @@ def warn_inaccessible_dirs(warning_parent: widgets.QWidget):
             text.format(dirs='\n'.join(d.path for d in i_dirs)),
             widgets.QMessageBox.StandardButton.Ok
         )
-
-
-def main():
-    app = widgets.QApplication([])
-    window = MainWindow()
-
-    warn_inaccessible_dirs(window)
-
-    window.show()
-    app.exec()
-
-
-if __name__ == '__main__':
-    main()
