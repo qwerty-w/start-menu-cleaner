@@ -29,7 +29,7 @@ exe = EXE(
     a.datas,
     [],
     Tree('icons', 'icons\\'),
-    name='start',
+    name='cleaner',
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,
