@@ -67,13 +67,6 @@ class SMFolder(SMObject):
     def is_empty(self):
         return len(self.shortcuts) == 0
 
-    @staticmethod
-    def _safe_file_move(src: str, dst_dir: str):
-        try:
-            os.rename(src, os.path.join(dst_dir, os.path.basename(src)))
-        except FileExistsError:
-            os.remove(src)
-
     def _recursion_move(self, dir_out: str, dir_in: str):
         """
         Move the shortcuts separately, not the entire folder as a whole. Otherwise,
@@ -89,7 +82,7 @@ class SMFolder(SMObject):
                 self._recursion_move(entry.path, new_dir_in)
                 continue
 
-            self._safe_file_move(entry.path, dir_in)
+            os.replace(entry.path, os.path.join(dir_in, os.path.basename(entry.path)))
 
     def move(self, path_to_directory: str):
         new_path = os.path.join(path_to_directory, self.name)
@@ -169,7 +162,7 @@ class StartMenuShortcut(SMObject):
 
     def move(self, path_to_directory: str):
         new_p = os.path.join(path_to_directory, self.name + self.ext)
-        os.rename(self.path, new_p)
+        os.replace(self.path, new_p)
         self.path = new_p
 
     def relative_move(self, path_to_directory: str):
