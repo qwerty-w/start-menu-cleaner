@@ -227,7 +227,7 @@ class StartMenuFolderGUI(Widget, widgets.QLabel):
         self.area = area
 
         self.isKept = None
-        self.keptStyleSheet = 'color: green;'
+        self.keptStyleSheet = 'color: #228BE6;'
         self.notKeptStyleSheet = 'color: #54595d;'
 
         self.isSkipped = None
@@ -328,6 +328,8 @@ class ShortcutsArea(Widget, widgets.QScrollArea):
             """
             QWidget {background-color: #FFFFFF;}
             QScrollBar {background-color: none;}
+            QScrollBar::handle:horizontal {background-color: #228BE6}
+            QScrollArea {background-color: #F0F0F0; border: 1px solid #228BE6;}
             """
         )
         self.displayShortcuts()
@@ -359,7 +361,8 @@ class ShortcutsArea(Widget, widgets.QScrollArea):
 
 
 class ApplyToQuestionLabel(Widget, widgets.QLabel):
-    pass
+    def initUi(self):
+        self.setStyleSheet('color: #54595d;')
 
 
 class ApplyToCheckedRadioButton(Widget, widgets.QRadioButton):
@@ -415,7 +418,7 @@ class NewShortcutNameInputDialog(Widget, widgets.QInputDialog):
 
 class AddNewShortcutButton(Widget, widgets.QPushButton):
     def initUi(self):
-        self.setIcon(gui.QIcon(r'icons\wmploc_474.ico'))
+        self.setIcon(gui.QIcon(r'icons\icons8-plus-math-50.png'))
         self.setStyleSheet("""
         QPushButton {
             color: #ffffff;
