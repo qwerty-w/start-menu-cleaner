@@ -6,6 +6,7 @@ from PyQt5 import QtWidgets as widgets
 from PyQt5 import QtCore as core
 from PyQt5 import QtGui as gui
 
+from . import resource_path
 from .app_text import TEXT
 from .menu import StartMenuShortcut, SMFolder, StartMenu
 
@@ -418,7 +419,7 @@ class NewShortcutNameInputDialog(Widget, widgets.QInputDialog):
 
 class AddNewShortcutButton(Widget, widgets.QPushButton):
     def initUi(self):
-        self.setIcon(gui.QIcon(r'icons\icons8-plus-math-50.png'))
+        self.setIcon(gui.QIcon(resource_path(r'icons\icons8-plus-math-50.png')))
         self.setStyleSheet("""
         QPushButton {
             color: #ffffff;
@@ -489,7 +490,7 @@ class RefreshWindowButton(Widget, widgets.QPushButton):
         super().__init__(*args, **kwargs)
 
     def initUi(self):
-        self.setIcon(gui.QIcon(r'icons\icons8-synchronize-50.png'))
+        self.setIcon(gui.QIcon(resource_path(r'icons\icons8-synchronize-50.png')))
         self.setStyleSheet("""
         QPushButton {
             color: #ffffff;
@@ -551,7 +552,7 @@ class MainWindow(widgets.QMainWindow):
         self.setCentralWidget(self.centralwidget)
         self.retranslateUi()
         self.setGeometryUi()
-        self.setWindowIcon(gui.QIcon('icons/menu.png'))
+        self.setWindowIcon(gui.QIcon(resource_path('icons/menu.png')))
         core.QMetaObject.connectSlotsByName(self)
 
     def retranslateUi(self):
