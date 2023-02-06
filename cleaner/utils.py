@@ -17,13 +17,13 @@ def safe_mkdirs(p: str):
         return 1
 
 
-def rmove_dir(dir_out: str, dir_in: str):  # recursion move
+def rmove_dir(path: str, dir_in: str):  # recursion move
     """
     Move the shortcuts separately, not the entire folder as a whole. Otherwise,
     the built-in service shortcuts with translated names may not be displayed
     correctly.
     """
-    for entry in os.scandir(dir_out):
+    for entry in os.scandir(path):
         entry: os.DirEntry
 
         if entry.is_dir():
@@ -33,3 +33,5 @@ def rmove_dir(dir_out: str, dir_in: str):  # recursion move
 
         else:
             os.replace(entry.path, os.path.join(dir_in, os.path.basename(entry.path)))
+
+    os.rmdir(path)

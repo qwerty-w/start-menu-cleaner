@@ -83,7 +83,6 @@ class StartMenuFolder(SMFolder):
         utils.safe_mkdir(new_path)
         utils.rmove_dir(self.path, new_path)
 
-        self.delete()
         self.path = new_path
 
     def delete(self) -> None:
