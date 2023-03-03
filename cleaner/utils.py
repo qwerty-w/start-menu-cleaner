@@ -35,3 +35,16 @@ def rmove_dir(path: str, dir_in: str):  # recursion move
             os.replace(entry.path, os.path.join(dir_in, os.path.basename(entry.path)))
 
     os.rmdir(path)
+
+
+def recursion_rmdir(path: str):
+    for entry in os.scandir(path):
+        entry: os.DirEntry
+
+        if entry.is_dir():
+            recursion_rmdir(entry.path)
+
+        else:
+            os.remove(entry.path)
+
+    os.rmdir(path)
