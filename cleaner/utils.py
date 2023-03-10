@@ -1,4 +1,5 @@
 import os
+from send2trash import send2trash
 
 
 def safe_mkdir(p: str):
@@ -17,24 +18,32 @@ def safe_mkdirs(p: str):
         return 1
 
 
-def rmove_dir(path: str, dir_in: str):  # recursion move
+def rmove_dir(current_path: str, new_path: str, *, replace: bool = True):  # recursion move
     """
-    Move the shortcuts separately, not the entire folder as a whole. Otherwise,
-    the built-in service shortcuts with translated names may not be displayed
-    correctly.
+    Move the shortcuts separately, not the entire folder as a whole.
     """
-    for entry in os.scandir(path):
+    for entry in os.scandir(current_path):
         entry: os.DirEntry
 
         if entry.is_dir():
-            new_dir_in = os.path.join(dir_in, entry.name)
-            safe_mkdir(new_dir_in)
-            rmove_dir(entry.path, new_dir_in)
+            subfolder_new_p = os.path.join(new_path, entry.name)
+            if not os.path.exists(subfolder_new_p):
+                safe_mkdir(subfolder_new_p)
+            rmove_dir(entry.path, subfolder_new_p)
 
         else:
-            os.replace(entry.path, os.path.join(dir_in, os.path.basename(entry.path)))
+            file_new_p = os.path.join(new_path, os.path.basename(entry.path))
 
-    os.rmdir(path)
+            if replace:
+                os.replace(entry.path, file_new_p)
+
+            elif not os.path.exists(file_new_p):
+                os.rename(entry.path, file_new_p)
+
+            else:  # if file exists and os.replace forbidden
+                pass  # todo: maybe send2trash(entry.path)
+
+    send2trash(current_path)
 
 
 def recursion_rmdir(path: str):

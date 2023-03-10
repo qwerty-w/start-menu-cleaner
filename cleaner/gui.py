@@ -84,7 +84,7 @@ class MoveToFolderRadioButton(Widget, widgets.QRadioButton):
     pass
 
 
-class DeleteRadioButton(Widget, widgets.QRadioButton):
+class RemoveRadioButton(Widget, widgets.QRadioButton):
     def initUi(self):
         self.setChecked(True)
 
@@ -149,20 +149,34 @@ class ApplyButton(Widget, widgets.QPushButton):
             action = StartMenu.clean_action.move(path)
             actionText = TEXT.MOVED
         else:
-            action = StartMenu.clean_action.delete()
-            actionText = TEXT.DELETED
+            action = StartMenu.clean_action.remove()
+            actionText = TEXT.REMOVED
 
-        cleanedFolders, appliedShortcuts = StartMenu.clean(action, foldersToClean)
-        widgets.QMessageBox.information(
-            self.parent(),
-            TEXT.COMPLETE,
-            TEXT.APPLY_CLEANED.format(
-                cleanedFolders=cleanedFolders,
-                appliedShortcuts=appliedShortcuts,
-                actionText=actionText
-            ),
-            widgets.QMessageBox.StandardButton.Ok
-        )
+        cleanResult = StartMenu.clean(action, foldersToClean)
+        if cleanResult.errors:
+            widgets.QMessageBox.warning(
+                self.parent(),
+                TEXT.WARNING,
+                TEXT.HAVE_CLEAN_ERRORS_WARNING.format(
+                    errors_count=len(cleanResult.errors),
+                    log_fp=cleanResult.log_fp,
+                    cleanedFolders=cleanResult.cleaned_folders,
+                    appliedShortcuts=cleanResult.applied_shortcuts,
+                    actionText=actionText
+                ),
+                widgets.QMessageBox.StandardButton.Ok
+            )
+        else:
+            widgets.QMessageBox.information(
+                self.parent(),
+                TEXT.COMPLETE,
+                TEXT.APPLY_CLEANED.format(
+                    cleanedFolders=cleanResult.cleaned_folders,
+                    appliedShortcuts=cleanResult.applied_shortcuts,
+                    actionText=actionText
+                ),
+                widgets.QMessageBox.StandardButton.Ok
+            )
 
         update_window(self.mainWindow)
 
@@ -532,10 +546,10 @@ class MainWindow(widgets.QMainWindow):
         self.addNewShortcutButton = AddNewShortcutButton(self.centralwidget)
         self.refreshWindowButton = RefreshWindowButton(self, self.centralwidget)
 
-        self.moveOrDeleteGeneralWidget = widgets.QWidget(self.centralwidget)
-        self.path2FolderLabel = ChooseFolderButton(self.moveOrDeleteGeneralWidget)
-        self.move2FolderRadioButton = MoveToFolderRadioButton(self.moveOrDeleteGeneralWidget)
-        self.deleteRadioButton = DeleteRadioButton(self.moveOrDeleteGeneralWidget)
+        self.moveOrRemoveGeneralWidget = widgets.QWidget(self.centralwidget)
+        self.path2FolderLabel = ChooseFolderButton(self.moveOrRemoveGeneralWidget)
+        self.move2FolderRadioButton = MoveToFolderRadioButton(self.moveOrRemoveGeneralWidget)
+        self.removeRadioButton = RemoveRadioButton(self.moveOrRemoveGeneralWidget)
 
         self.apply2QuestionGeneralWidget = widgets.QWidget(self.centralwidget)
         self.apply2Question = ApplyToQuestionLabel(self.apply2QuestionGeneralWidget)
@@ -560,7 +574,7 @@ class MainWindow(widgets.QMainWindow):
 
         self.path2FolderLabel.setText(wrapU(TEXT.SELECT_DIRECTORY))
         self.move2FolderRadioButton.setText(TEXT.MOVE_TO_DIRECTORY)
-        self.deleteRadioButton.setText(TEXT.DELETE)
+        self.removeRadioButton.setText(TEXT.REMOVE)
         self.apply2Question.setText(TEXT.APPLY_TO)
         self.apply2Checked.setText(TEXT.SELECTED)
         self.apply2Unchecked.setText(TEXT.UNSELECTED)
@@ -572,10 +586,10 @@ class MainWindow(widgets.QMainWindow):
         self.addNewShortcutButton.setGeometry(10, 5, 16, 16)
         self.refreshWindowButton.setGeometry(32, 5, 16, 16)
 
-        self.moveOrDeleteGeneralWidget.setGeometry(core.QRect(275, 20, 110, 60))
+        self.moveOrRemoveGeneralWidget.setGeometry(core.QRect(275, 20, 110, 60))
         self.path2FolderLabel.setGeometry(core.QRect(0, 0, 110, 20))
         self.move2FolderRadioButton.setGeometry(core.QRect(0, 20, 110, 20))
-        self.deleteRadioButton.setGeometry(core.QRect(0, 40, 110, 20))
+        self.removeRadioButton.setGeometry(core.QRect(0, 40, 110, 20))
 
         self.apply2QuestionGeneralWidget.setGeometry(core.QRect(275, 85, 110, 60))
         self.apply2Question.setGeometry(core.QRect(0, 0, 110, 20))

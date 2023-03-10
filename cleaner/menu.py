@@ -1,15 +1,17 @@
 import os
+import time
 import struct
 import locale
 import logging
+import tempfile
+from typing import Optional
 from abc import ABC, abstractmethod
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from collections import namedtuple
 
+from send2trash import send2trash
+
 from . import utils
-
-
-LOG = logging.getLogger('app')
 
 
 class StartMenuDir:
@@ -42,7 +44,7 @@ class SMObject(ABC):
         ...
 
     @abstractmethod
-    def delete(self) -> None:
+    def remove(self) -> None:
         ...
 
 
@@ -79,14 +81,19 @@ class StartMenuFolder(SMFolder):
         return type(self)(self.path, shortcuts=self.shortcuts)
 
     def move(self, path_to_directory: str) -> None:
-        new_path = os.path.join(path_to_directory, self.name)
-        utils.safe_mkdir(new_path)
-        utils.rmove_dir(self.path, new_path)
+        new_p = os.path.join(path_to_directory, self.name)
 
-        self.path = new_path
+        if os.path.exists(new_p):
+            try:
+                os.remove(new_p)
+            except OSError:
+                return send2trash(self.path)
 
-    def delete(self) -> None:
-        os.rmdir(self.path)
+        utils.rmove_dir(self.path, path_to_directory, replace=False)
+        self.path = new_p
+
+    def remove(self) -> None:
+        send2trash(self.path)
 
 
 class StartMenuExtendedFolder(SMFolder):  # folder which exists in few start menu dirs
@@ -110,9 +117,9 @@ class StartMenuExtendedFolder(SMFolder):  # folder which exists in few start men
         for f in self.folders:
             f.move(path_to_directory)
 
-    def delete(self) -> None:
+    def remove(self) -> None:
         for f in self.folders:
-            f.delete()
+            f.remove()
 
 
 class StartMenuShortcut(SMObject):
@@ -146,8 +153,8 @@ class StartMenuShortcut(SMObject):
 
         self.move(new_path_to_dir)
 
-    def delete(self):
-        os.remove(self.path)
+    def remove(self):
+        send2trash(self.path)
 
     def get_link_target(self) -> str:
         with open(self.path, 'rb') as stream:
@@ -175,9 +182,33 @@ class StartMenuShortcut(SMObject):
             return content[-1].decode('utf-16' if len(content) > 1 else locale.getdefaultlocale()[1])
 
 
+class CleanError(Exception):
+    def __init__(self, e: Exception):
+        self.during_e = e
+        self.__traceback__ = e.__traceback__
+
+    def __str__(self):
+        return f'[{self.during_e.__class__.__name__}: {self.during_e}]'
+
+    def represent(self):
+        return f'{self.__class__.__name__}: {str(self)}'
+
+
+class ShortcutToApplyHandleError(CleanError):
+    pass
+
+
+class ShortcutToSaveHandleError(CleanError):
+    pass
+
+
+class FolderHandleError(CleanError):
+    pass
+
+
 class _CleanAction:
     MOVE = 0
-    DELETE = 1
+    REMOVE = 1
 
     def __init__(self, id: int, name: str, data: dict = None):
         self.id = id
@@ -197,11 +228,18 @@ class _CleanAction:
 
     @classmethod
     def move(cls, path: str):
-        return cls(cls.MOVE, 'move', {'path': path})
+        return cls(cls.MOVE, 'move', {'path': path, 'ps': 'moved'})
 
     @classmethod
-    def delete(cls):
-        return cls(cls.DELETE, 'delete')
+    def remove(cls):
+        return cls(cls.REMOVE, 'remove', {'ps': 'removed'})
+
+    @classmethod
+    def get_ints(cls):
+        return [
+            cls.MOVE,
+            cls.REMOVE
+        ]
 
 
 @dataclass
@@ -212,9 +250,185 @@ class _FolderToClean:
     shortcuts_to_save: list[StartMenuShortcut]
 
 
+@dataclass
+class _CleanResult:
+    cleaned_folders: int = 0
+    applied_shortcuts: int = 0
+    errors: list[CleanError] = field(default_factory=lambda: [])
+    log_fp: str = ''
+
+
+class _CleanLogger(logging.Logger):
+    KEEP_LOG_FILE = False
+
+    def __init__(self, name: str, level: int = logging.INFO):
+        super().__init__(name, level)
+        self.default_formatter = logging.Formatter('[{asctime}] {folder_name}{message}', '%H:%M:%S', '{')
+
+        std = logging.StreamHandler()
+        std.setFormatter(self.default_formatter)
+        self.addHandler(std)
+
+        self.file: Optional[logging.FileHandler] = None
+        self.manager = logging.Logger.manager
+        self.manager.loggerDict[self.name] = self
+        self.manager._fixupParents(self)
+        self.propagate = False
+
+    def _log(self, level: int, msg: object, *args, extra: dict = None, **kwargs) -> None:
+        extra = extra.copy() if extra else {}
+        folder_name = extra.get('folder_name') or kwargs.get('folder_name') or kwargs.get('folder')
+        extra['folder_name'] = f'{folder_name} -> ' if folder_name else ''
+        return super()._log(level, msg, *args, extra=extra, **kwargs)
+
+    def init_file(self):
+        name = f'sm-clean-{int(time.time())}.log'
+        self.file = logging.FileHandler(os.path.join(tempfile.gettempdir(), name))
+        self.file.setFormatter(self.default_formatter)
+        self.addHandler(self.file)
+
+        self.info(f'Create .log file (by init): {name}')
+
+    def reset_file(self, *, keep_file: bool = True, keep_reason: str = 'default'):
+        if not self.file:
+            return
+
+        f_name = os.path.basename(self.file.baseFilename)
+        msg = '{} .log file (by {}): ' + f_name
+
+        if self.KEEP_LOG_FILE:
+            self.info(msg.format('Keep', 'KEEP_LOG_FILE'))
+
+        elif keep_file:
+            self.info(msg.format('Keep', keep_reason))
+
+        self.removeHandler(self.file)
+        self.file.close()
+
+        if not self.KEEP_LOG_FILE and not keep_file:
+            os.remove(self.file.baseFilename)
+            self.info(msg.format('Delete', 'reset'))
+
+        self.file = None
+
+
+class SMCleaner:
+    actions = _CleanAction
+    folder = _FolderToClean
+
+    LOG = _CleanLogger(__name__ + '.clean')
+    L_START_CLEAN = '=== START CLEAN ==='
+    L_ACTION = 'ACTION - <{}>'
+    L_START_FOLDER = '-- Start folder --'
+    L_HAVE_ERROR_WITH_SHORTCUT = 'Have an error with <{}> shortcut'
+    L_SHORTCUT_HANDLED = 'Shortcut "{}" was {}'
+    L_KEEP_FOLDER = 'Folder was kept'
+    L_SHORTCUT_MOVED_OUT = 'Shortcut "{}" was moved out'
+    L_FOLDER_HANDLED = 'Folder was {}'
+    L_FOLDER_END = '-- Folder end --'
+    L_CLEAN_HANDLED = '{} folders were cleaned, {} shortcuts were {}'
+    L_END_CLEAN = '=== END CLEAN ==='
+
+    def __init__(self, action: _CleanAction, folders_to_clean: list[_FolderToClean]):
+        if action not in self.actions.get_ints():
+            raise ValueError('action should be equal _CleanAction actions')
+
+        self.action = action
+        self.folders2clean = folders_to_clean
+        self.result: _CleanResult = _CleanResult(0, 0, [])
+
+    def handle_e(self, e: CleanError, *, msg: str = None, extra: dict = None):
+        self.result.errors.append(e)
+        self.LOG.error('Have an error:' if msg is None else msg, exc_info=e, extra=extra)
+
+    def clean(self):
+        self.LOG.init_file()
+
+        is_move = self.action == self.actions.MOVE
+        is_remove = self.action == self.actions.REMOVE
+        action_ps = self.action.data['ps']
+
+        self.LOG.info(self.L_START_CLEAN)
+        self.LOG.info(self.L_ACTION.format(self.action.name.upper()))
+
+        for clean_f in self.folders2clean:
+            extra = {'folder_name': clean_f.folder.name}
+            self.LOG.info(self.L_START_FOLDER)
+
+            # handle selected shortcuts
+            for clean_s in clean_f.shortcuts_to_apply:
+                try:
+                    if is_move:
+                        clean_s.relative_move(self.action.data['path'])
+
+                    elif is_remove:
+                        clean_s.remove()
+
+                except Exception as e:
+                    self.handle_e(
+                        ShortcutToApplyHandleError(e),
+                        msg=self.L_HAVE_ERROR_WITH_SHORTCUT.format(clean_s.name),
+                        extra=extra
+                    )
+                    continue
+
+                self.result.applied_shortcuts += 1
+                self.LOG.info(self.L_SHORTCUT_HANDLED.format(clean_s.name, action_ps), extra=extra)
+
+            # skip folder if it's kept
+            if clean_f.is_kept:
+                self.LOG.info(self.L_KEEP_FOLDER, extra=extra)
+                continue
+
+            # move out saved shortcuts
+            skip_folder = False
+            for saved_s in clean_f.shortcuts_to_save:
+                try:
+                    saved_s.move(saved_s.get_fpath())
+                    self.LOG.info(self.L_SHORTCUT_MOVED_OUT.format(saved_s.name), extra=extra)
+                    self.result.applied_shortcuts += 1
+
+                except OSError as e:
+                    self.handle_e(
+                        ShortcutToSaveHandleError(e),
+                        msg=self.L_HAVE_ERROR_WITH_SHORTCUT.format(saved_s.name),
+                        extra=extra
+                    )
+                    skip_folder = True
+                    break
+
+            if skip_folder:
+                continue
+
+            # handle folder after saving remaining shortcuts (by moving out to common folder)
+            try:
+                if is_move:
+                    clean_f.folder.move(self.action.data['path'])
+
+                elif is_remove:
+                    clean_f.folder.remove()
+
+                self.LOG.info(self.L_FOLDER_HANDLED.format(action_ps), extra=extra)
+                self.LOG.info(self.L_FOLDER_END)
+
+            except OSError as e:
+                self.handle_e(FolderHandleError(e), extra=extra)
+
+        self.LOG.info(self.L_CLEAN_HANDLED.format(
+            self.result.cleaned_folders,
+            self.result.applied_shortcuts,
+            action_ps
+        ))
+        self.LOG.info(self.L_END_CLEAN)
+        self.result.log_fp = self.LOG.file.baseFilename
+        self.LOG.reset_file(keep_file=bool(self.result.errors), keep_reason='errors')
+        return self.result
+
+
 class StartMenu:
     clean_action = _CleanAction
     folder_to_clean = _FolderToClean
+    clean_result = _CleanResult
 
     default_dirs = namedtuple('_SMDirs', 'system user')(
         StartMenuDir(
@@ -228,7 +442,7 @@ class StartMenu:
     )
 
     @classmethod
-    def update(cls):
+    def update(cls) -> None:
         for d in cls.default_dirs:
             d.update_accessibility()
 
@@ -259,40 +473,5 @@ class StartMenu:
         return folders
 
     @classmethod
-    def clean(cls, action: _CleanAction, folders_to_clean: list[_FolderToClean]):
-        LOG.info('=== START CLEAN ===')
-        LOG.info(f'ACTION - <{action.name.upper()}>')
-
-        cleaned_folders = applied_shortcuts = 0
-        act_text = "moved" if action == cls.clean_action.MOVE else "deleted"
-
-        for clean_f in folders_to_clean:
-            log = lambda text: LOG.info(f'{clean_f.folder.name}: {text}')
-            log(f'-- Folder start --')
-            cleaned_folders += 1
-
-            for clean_s in clean_f.shortcuts_to_apply:
-                clean_s.relative_move(action.data['path']) if action == cls.clean_action.MOVE else clean_s.delete()
-                applied_shortcuts += 1
-                log(f'Shortcut "{clean_s.name}" was {act_text}')
-
-            if clean_f.is_kept:
-                log('Folder was kept')
-                continue
-
-            for saved_s in clean_f.shortcuts_to_save:
-                saved_s.move(saved_s.get_fpath())  # move out
-                log(f'Shortcut "{saved_s.name}" was moved out')
-
-            if action == cls.clean_action.MOVE:
-                clean_f.folder.move(action.data['path'])
-
-            elif action == cls.clean_action.DELETE:
-                clean_f.folder.delete()
-
-            log(f'Folder was {act_text}')
-            log(f'-- Folder end --')
-
-        LOG.info(f'{cleaned_folders} folders were cleaned, {applied_shortcuts} shortcuts were {act_text}')
-        LOG.info('=== END CLEAN ===')
-        return cleaned_folders, applied_shortcuts
+    def clean(cls, action: _CleanAction, folders_to_clean: list[_FolderToClean]) -> _CleanResult:
+        return SMCleaner(action, folders_to_clean).clean()

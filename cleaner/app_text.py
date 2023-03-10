@@ -6,7 +6,7 @@ class AppText:
     SELECT_FOLDER = 'Select a folder:'
     SELECT_FILE = 'Select a file:'
     MOVE_TO_DIRECTORY = 'Move to directory'
-    DELETE = 'Delete'
+    REMOVE = 'Remove'
     APPLY_TO = 'Apply to shortcuts:'
     SELECTED = 'Checked'
     UNSELECTED = 'Unchecked'
@@ -34,7 +34,7 @@ class AppText:
     APPLY_CLEANED = 'Were cleaned {cleanedFolders} folders and {appliedShortcuts} shortcuts were {actionText}'
     NEED_SELECT_DIRECTORY = 'You have to select a directory to move the shortcuts to it'
     MOVED = 'moved'
-    DELETED = 'deleted'
+    REMOVED = 'removed'
     ADD_NEW_SHORTCUT_TOOL_TIP = 'Add new shortcut'
     REFRESH_WINDOW_TOOL_TIP = 'Update shortcuts list'
     NO_EMPTY_FOLDERS = 'No empty folders'
@@ -49,6 +49,10 @@ class AppText:
     NO_ACCESS_TO_DIRS = '{dirs}\n\nNo access to these shortcut directories. Their shortcuts will not be displayed. ' \
                         'Change the directories permissions and its subfolders or run the application with ' \
                         'administrator rights'
+    WARNING = 'Warning'
+    HAVE_CLEAN_ERRORS_WARNING = 'During the cleanup, {errors_count} errors were caused, more information about ' \
+                                'them can be found in the log file ({log_fp}).\nAs a result - {cleanedFolders} ' \
+                                'folders and {appliedShortcuts} shortcuts were {actionText}'
 
     def __getattr__(self, item):
         return QCoreApplication.translate('MainWindow', self.__dict__.get(item))
