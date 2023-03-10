@@ -1,5 +1,6 @@
 import os
 import ctypes
+import subprocess
 from functools import partial
 
 from PyQt5 import QtWidgets as widgets
@@ -204,10 +205,10 @@ class StartMenuShortcutGUI(Widget, widgets.QCheckBox):
         return self.iconProvider.icon(fileInfo)
 
     def openInExplorer(self):
-        os.system(f'explorer.exe /select, "{self.shortcut.path}"')
+        subprocess.Popen(f'explorer.exe /select, "{self.shortcut.path}"', shell=True)
 
     def openTargetInExplorer(self):
-        os.system(f'explorer.exe /select, "{self.targetPath}"')
+        subprocess.Popen(f'explorer.exe /select, "{self.targetPath}"', shell=True)
 
     def contextMenuEvent(self, event: gui.QContextMenuEvent):
         menu = widgets.QMenu()
