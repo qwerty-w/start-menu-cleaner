@@ -24,7 +24,7 @@ class StartMenuDir:
         try:
             open(tmp_f, mode='w')
             os.remove(tmp_f)
-        except WindowsError:
+        except OSError:
             return False
 
         return True
