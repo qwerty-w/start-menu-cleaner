@@ -9,40 +9,10 @@ from PyQt5 import QtGui as gui
 
 from .app_text import TEXT
 from .menu import StartMenuShortcut, SMFolder, StartMenu
-from .utils import resource_path
+from .utils import resource_path, HTML, validate_filename, FILENAME_FORBIDDEN_CHARACTERS
 
 
 LOG = logging.getLogger(__name__ + '.gui')
-
-
-def wrapBold(string: str):
-    return f'<strong>{string}</strong>'
-
-
-def wrapU(string: str):
-    return f'<u>{string}</u>'
-
-
-def clearHtmlTags(string: str):
-    string = string[string.find('>') + 1:]
-    return string[:string.find('<')]
-
-
-class FilenameValidation:
-    specialCharacters = [
-        '\\',
-        '/',
-        ':',
-        '*',
-        '?',
-        '<',
-        '>',
-        '|'
-    ]
-
-    @classmethod
-    def validate(cls, name: str):
-        return all(map(lambda ch: ch not in name, cls.specialCharacters))
 
 
 class Widget:
@@ -81,7 +51,7 @@ class ChooseFolderButton(Widget, widgets.QLabel):
         metrics = gui.QFontMetrics(self.font())
         text = metrics.elidedText(path, core.Qt.TextElideMode.ElideLeft, self.width())
         self.setText(text)
-        self.setToolTip(wrapBold(path))
+        self.setToolTip(HTML(path).wrap_bold())
 
 
 class MoveToFolderRadioButton(Widget, widgets.QRadioButton):
@@ -139,7 +109,7 @@ class ApplyButton(Widget, widgets.QPushButton):
             )
 
         if self.mainWindow.move2FolderRadioButton.isChecked():
-            path = clearHtmlTags(self.mainWindow.path2FolderLabel.toolTip())
+            path = HTML(self.mainWindow.path2FolderLabel.toolTip()).clear()
 
             if not path:
                 widgets.QMessageBox.critical(
@@ -480,10 +450,10 @@ class AddNewShortcutButton(Widget, widgets.QPushButton):
             defaultCriticalBox(TEXT.NAME_CANT_BE_EMPTY)
             return
 
-        if not FilenameValidation.validate(name):
+        if not validate_filename(name):
             defaultCriticalBox(
                 TEXT.CHARACTERS_CANT_BE_USED.format(
-                    characters=" ".join(FilenameValidation.specialCharacters)
+                    characters=" ".join(FILENAME_FORBIDDEN_CHARACTERS)
                 )
             )
             return
@@ -576,7 +546,7 @@ class MainWindow(widgets.QMainWindow):
     def retranslateUi(self):
         _translate = core.QCoreApplication.translate
 
-        self.path2FolderLabel.setText(wrapU(TEXT.SELECT_DIRECTORY))
+        self.path2FolderLabel.setText(HTML(TEXT.SELECT_DIRECTORY).wrap_underline())
         self.move2FolderRadioButton.setText(TEXT.MOVE_TO_DIRECTORY)
         self.removeRadioButton.setText(TEXT.REMOVE)
         self.apply2Question.setText(TEXT.APPLY_TO)

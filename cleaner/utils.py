@@ -3,6 +3,52 @@ import sys
 from send2trash import send2trash
 
 
+FILENAME_FORBIDDEN_CHARACTERS = [
+    '\\',
+    '/',
+    ':',
+    '*',
+    '?',
+    '<',
+    '>',
+    '|'
+]
+
+
+class HTML:
+    def __init__(self, string: str):
+        self.string = string
+
+    def wrap(self, tag: str) -> str:
+        return f'<{tag}>{self.string}</{tag}>'
+
+    def wrap_bold(self):
+        return self.wrap('strong')
+
+    def wrap_underline(self):
+        return self.wrap('u')
+
+    def clear(self) -> str:
+        result = ''
+        inside = outside = 0
+
+        for ch in self.string:
+            if ch == '<':
+                inside += 1
+
+            elif ch == '>':
+                outside += 1
+
+            elif inside == outside:
+                result += ch
+
+        return result
+
+
+def validate_filename(name: str) -> bool:
+    return all(map(lambda ch: ch not in name, FILENAME_FORBIDDEN_CHARACTERS))
+
+
 def safe_mkdir(p: str):
     try:
         os.mkdir(p)
