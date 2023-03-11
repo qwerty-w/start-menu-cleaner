@@ -1,5 +1,4 @@
 import os
-import ctypes
 import logging
 import subprocess
 from functools import partial
@@ -489,7 +488,7 @@ class AddNewShortcutButton(Widget, widgets.QPushButton):
             )
             return
 
-        if dialog.forAllUsersCheckbox.isChecked() and not ctypes.windll.shell32.IsUserAnAdmin():
+        if dialog.forAllUsersCheckbox.isChecked() and not systemDir.is_accessible:
             defaultCriticalBox(TEXT.NEED_ADMIN_RIGHTS_FOR_CREATE_ALL_USERS_SHORTCUT)
             return
 
