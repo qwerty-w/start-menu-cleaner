@@ -1,5 +1,6 @@
 import os
 import ctypes
+import logging
 import subprocess
 from functools import partial
 
@@ -7,9 +8,12 @@ from PyQt5 import QtWidgets as widgets
 from PyQt5 import QtCore as core
 from PyQt5 import QtGui as gui
 
-from . import resource_path
 from .app_text import TEXT
 from .menu import StartMenuShortcut, SMFolder, StartMenu
+from .utils import resource_path
+
+
+LOG = logging.getLogger(__name__ + '.gui')
 
 
 def wrapBold(string: str):
@@ -611,11 +615,13 @@ def update_window(current_window: MainWindow):
     return w
 
 
-def warn_inaccessible_dirs(warning_parent: widgets.QWidget):
+def warn_inaccessible_dirs(warning_parent: widgets.QWidget) -> None:
     i_dirs = [d for d in StartMenu.default_dirs if not d.is_accessible]
 
     if not i_dirs:
         return
+
+    LOG.info('Show inaccessible start menu shortcuts dirs warning')
 
     for d in i_dirs:
         if d is StartMenu.default_dirs.system:

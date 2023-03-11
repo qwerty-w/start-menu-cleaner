@@ -12,6 +12,8 @@ parse.add_argument(
 
 
 def main():
+    cleaner.LOG.setLevel(cleaner.logging.INFO)
+
     args = parse.parse_args()
     if args.log_clean:
         cleaner.menu.SMCleaner.LOG.KEEP_LOG_FILE = True
@@ -20,7 +22,6 @@ def main():
     app = cleaner.widgets.QApplication([])
     window = cleaner.MainWindow()
 
-    cleaner.LOG.info('Show inaccessible start menu shortcuts dirs warning')
     cleaner.warn_inaccessible_dirs(window)
 
     window.show()
