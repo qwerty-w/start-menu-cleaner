@@ -464,6 +464,7 @@ class AddNewShortcutButton(Widget, widgets.QPushButton):
 
         shortcutDir = systemDir if dialog.forAllUsersCheckbox.isChecked() else userDir
         core.QFile(targetPath).link(os.path.join(shortcutDir, name + '.lnk'))
+        LOG.info(f'Add new shortcut "{name}" in "{shortcutDir}"')
         widgets.QMessageBox.information(
             dialog,
             TEXT.COMPLETE,
@@ -576,6 +577,7 @@ class MainWindow(widgets.QMainWindow):
 
 
 def update_window(current_window: MainWindow):
+    LOG.info('Update window')
     current_window.close()
 
     StartMenu.update()

@@ -293,14 +293,14 @@ class _CleanLogger(logging.Logger):
         self.file.setFormatter(self.default_formatter)
         self.addHandler(self.file)
 
-        self.info(f'Create .log file (by init): {name}')
+        self.info(f'Create .log file (by clean-init): {name}')
 
     def reset_file(self, *, keep_file: bool = True, keep_reason: str = 'default'):
         if not self.file:
             return
 
         f_name = os.path.basename(self.file.baseFilename)
-        msg = '{} .log file (by {}): ' + f_name
+        msg = '{} .log file (by clean-{}): ' + f_name
 
         if self.KEEP_LOG_FILE:
             self.info(msg.format('Keep', 'KEEP_LOG_FILE'))
