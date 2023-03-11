@@ -14,7 +14,7 @@ from send2trash import send2trash
 from . import utils
 
 
-class StartMenuDir:
+class StartMenuDir(os.PathLike):
     def __init__(self, path: str, type: str):
         self.path = path
         self.type = type
@@ -30,6 +30,12 @@ class StartMenuDir:
             return False
 
         return True
+
+    def __str__(self) -> str:
+        return self.path
+
+    def __fspath__(self) -> str:
+        return self.path
 
     def update_accessibility(self):
         self.is_accessible = self._check_on_accessible()
