@@ -1,16 +1,13 @@
 import os
-import time
 import struct
 import locale
-import logging
-import tempfile
-from typing import Optional
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from collections import namedtuple
 
 from send2trash import send2trash
 
+from . import log
 from . import utils
 
 
@@ -264,65 +261,11 @@ class _CleanResult:
     log_fp: str = ''
 
 
-class _CleanLogger(logging.Logger):
-    KEEP_LOG_FILE = False
-
-    def __init__(self, name: str, level: int = logging.INFO):
-        super().__init__(name, level)
-        self.default_formatter = logging.Formatter('[{asctime}] {folder_name}{message}', '%H:%M:%S', '{')
-
-        std = logging.StreamHandler()
-        std.setFormatter(self.default_formatter)
-        self.addHandler(std)
-
-        self.file: Optional[logging.FileHandler] = None
-        self.manager = logging.Logger.manager
-        self.manager.loggerDict[self.name] = self
-        self.manager._fixupParents(self)
-        self.propagate = False
-
-    def _log(self, level: int, msg: object, *args, extra: dict = None, **kwargs) -> None:
-        extra = extra.copy() if extra else {}
-        folder_name = extra.get('folder_name') or kwargs.get('folder_name') or kwargs.get('folder')
-        extra['folder_name'] = f'{folder_name} -> ' if folder_name else ''
-        return super()._log(level, msg, *args, extra=extra, **kwargs)
-
-    def init_file(self):
-        name = f'sm-clean-{int(time.time())}.log'
-        self.file = logging.FileHandler(os.path.join(tempfile.gettempdir(), name))
-        self.file.setFormatter(self.default_formatter)
-        self.addHandler(self.file)
-
-        self.info(f'Create .log file (by clean-init): {name}')
-
-    def reset_file(self, *, keep_file: bool = True, keep_reason: str = 'default'):
-        if not self.file:
-            return
-
-        f_name = os.path.basename(self.file.baseFilename)
-        msg = '{} .log file (by clean-{}): ' + f_name
-
-        if self.KEEP_LOG_FILE:
-            self.info(msg.format('Keep', 'KEEP_LOG_FILE'))
-
-        elif keep_file:
-            self.info(msg.format('Keep', keep_reason))
-
-        self.removeHandler(self.file)
-        self.file.close()
-
-        if not self.KEEP_LOG_FILE and not keep_file:
-            os.remove(self.file.baseFilename)
-            self.info(msg.format('Delete', 'reset'))
-
-        self.file = None
-
-
 class SMCleaner:
     actions = _CleanAction
     folder = _FolderToClean
 
-    LOG = _CleanLogger(__name__ + '.clean')
+    LOG: log.CleanLogger = log.getLogger(__name__ + '.clean')
     L_START_CLEAN = '=== START CLEAN ==='
     L_ACTION = 'ACTION - <{}>'
     L_START_FOLDER = '-- Start folder --'
@@ -357,7 +300,7 @@ class SMCleaner:
         self.LOG.info(self.L_START_CLEAN)
         self.LOG.info(self.L_ACTION.format(self.action.name.upper()))
 
-        for clean_f in self.folders2clean:
+        for clean_f in self.folders2clean:  # todo: change extra to LoggerAdapter
             extra = {'folder_name': clean_f.folder.name}
             self.LOG.info(self.L_START_FOLDER)
 
@@ -426,7 +369,9 @@ class SMCleaner:
             action_ps
         ))
         self.LOG.info(self.L_END_CLEAN)
-        self.result.log_fp = self.LOG.file.baseFilename
+        if self.LOG.file:
+            self.result.log_fp = self.LOG.file.baseFilename
+
         self.LOG.reset_file(keep_file=bool(self.result.errors), keep_reason='errors')
         return self.result
 

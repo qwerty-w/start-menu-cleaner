@@ -1,18 +1,19 @@
 import os
 import sys
-import logging
+
+from . import log
 from .menu import StartMenu
 from .gui import MainWindow, widgets, warn_inaccessible_dirs
 
 
-LOG = logging.getLogger(__name__)
-stream = logging.StreamHandler()
-stream.setFormatter(logging.Formatter('[{asctime}] {message}', '%H:%M:%S', '{'))
-LOG.addHandler(stream)
+LOG = log.getLogger(__name__)
 
 
-def excepthook(cls, e, tb):
-    LOG.error('App error:', exc_info=(cls, e, tb))
+def set_excepthook(app: gui.widgets.QApplication):
+    def excepthook(cls, e, tb):
+        LOG.critical('App error:', exc_info=(cls, e, tb))
+        LOG.warning('App was closed by critical error')
+        app.exit(1)
+        sys.exit(1)
 
-
-# sys.excepthook = excepthook
+    sys.excepthook = excepthook

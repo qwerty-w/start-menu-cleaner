@@ -1,5 +1,4 @@
 import os
-import logging
 import subprocess
 from functools import partial
 
@@ -7,12 +6,13 @@ from PyQt5 import QtWidgets as widgets
 from PyQt5 import QtCore as core
 from PyQt5 import QtGui as gui
 
+from . import log
 from .app_text import TEXT
 from .menu import StartMenuShortcut, SMFolder, StartMenu
 from .utils import resource_path, HTML, validate_filename, FILENAME_FORBIDDEN_CHARACTERS
 
 
-LOG = logging.getLogger(__name__ + '.gui')
+LOG = log.getLogger(__name__)
 
 
 class Widget:
@@ -592,7 +592,7 @@ def warn_inaccessible_dirs(warning_parent: widgets.QWidget) -> None:
     if not i_dirs:
         return
 
-    LOG.info('Show inaccessible start menu shortcuts dirs warning')
+    LOG.info('Show warning about inaccessible SM dirs')
 
     for d in i_dirs:
         if d is StartMenu.default_dirs.system:
