@@ -3,7 +3,7 @@ import sys
 
 from . import log
 from .menu import StartMenu
-from .gui import MainWindow, widgets, warn_inaccessible_dirs
+from .gui import MainWindow, widgets, warn_inaccessible_dirs, load_fonts
 
 
 LOG = log.getLogger(__name__)

@@ -1,5 +1,6 @@
 import os
 import subprocess
+from typing import Optional
 from functools import partial
 
 from PyQt5 import QtWidgets as widgets
@@ -32,9 +33,13 @@ class QAction(widgets.QAction):
 class ChooseFolderButton(Widget, widgets.QLabel):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        self.setDisabled(True)
+
+    def setDisabled(self, a0: bool) -> None:
+        self.setStyleSheet(f'color: {"#808080" if a0 else "#494242"}')
+        return super().setDisabled(a0)
 
     def initUi(self):
-        self.setStyleSheet('color: grey;')
         self.setCursor(gui.QCursor(core.Qt.CursorShape.PointingHandCursor))  # set cursor: pointer
 
     def mousePressEvent(self, event: gui.QMouseEvent) -> None:
@@ -55,7 +60,9 @@ class ChooseFolderButton(Widget, widgets.QLabel):
 
 
 class MoveToFolderRadioButton(Widget, widgets.QRadioButton):
-    pass
+    def __init__(self, mainWindow: 'MainWindow', *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.toggled.connect(lambda e: mainWindow.path2FolderLabel.setDisabled(not self.isChecked()))
 
 
 class RemoveRadioButton(Widget, widgets.QRadioButton):
@@ -411,7 +418,6 @@ class AddNewShortcutButton(Widget, widgets.QPushButton):
         self.setStyleSheet("""
         QPushButton {
             color: #ffffff;
-            background-color: #EFEFF1; 
             border: none;
         }""")
         self.setCursor(gui.QCursor(core.Qt.CursorShape.PointingHandCursor))
@@ -483,7 +489,6 @@ class RefreshWindowButton(Widget, widgets.QPushButton):
         self.setStyleSheet("""
         QPushButton {
             color: #ffffff;
-            background-color: #EFEFF1; 
             border: none;
         }""")
         self.setCursor(gui.QCursor(core.Qt.CursorShape.PointingHandCursor))
@@ -523,7 +528,7 @@ class MainWindow(widgets.QMainWindow):
 
         self.moveOrRemoveGeneralWidget = widgets.QWidget(self.centralwidget)
         self.path2FolderLabel = ChooseFolderButton(self.moveOrRemoveGeneralWidget)
-        self.move2FolderRadioButton = MoveToFolderRadioButton(self.moveOrRemoveGeneralWidget)
+        self.move2FolderRadioButton = MoveToFolderRadioButton(self, self.moveOrRemoveGeneralWidget)
         self.removeRadioButton = RemoveRadioButton(self.moveOrRemoveGeneralWidget)
 
         self.apply2QuestionGeneralWidget = widgets.QWidget(self.centralwidget)
@@ -536,7 +541,7 @@ class MainWindow(widgets.QMainWindow):
         self.applyButton = ApplyButton(self, self.centralwidget)
         self.shortcutsArea = ShortcutsArea(folders, self.centralwidget)
 
-        self.setFixedSize(core.QSize(390, 317))
+        self.setFixedSize(core.QSize(402, 317))
         self.setStyleSheet('MainWindow { background-color: #EFEFF1; }')
         self.setCentralWidget(self.centralwidget)
         self.retranslateUi()
@@ -561,18 +566,18 @@ class MainWindow(widgets.QMainWindow):
         self.addNewShortcutButton.setGeometry(10, 5, 16, 16)
         self.refreshWindowButton.setGeometry(32, 5, 16, 16)
 
-        self.moveOrRemoveGeneralWidget.setGeometry(core.QRect(275, 20, 110, 60))
-        self.path2FolderLabel.setGeometry(core.QRect(0, 0, 110, 20))
-        self.move2FolderRadioButton.setGeometry(core.QRect(0, 20, 110, 20))
-        self.removeRadioButton.setGeometry(core.QRect(0, 40, 110, 20))
+        self.moveOrRemoveGeneralWidget.setGeometry(core.QRect(275, 20, 112, 60))
+        self.path2FolderLabel.setGeometry(core.QRect(0, 0, 120, 20))
+        self.move2FolderRadioButton.setGeometry(core.QRect(0, 20, 120, 20))
+        self.removeRadioButton.setGeometry(core.QRect(0, 40, 120, 20))
 
-        self.apply2QuestionGeneralWidget.setGeometry(core.QRect(275, 85, 110, 60))
-        self.apply2Question.setGeometry(core.QRect(0, 0, 110, 20))
-        self.apply2Checked.setGeometry(core.QRect(0, 20, 110, 20))
-        self.apply2Unchecked.setGeometry(core.QRect(0, 40, 110, 20))
+        self.apply2QuestionGeneralWidget.setGeometry(core.QRect(275, 85, 120, 60))
+        self.apply2Question.setGeometry(core.QRect(0, 0, 120, 20))
+        self.apply2Checked.setGeometry(core.QRect(0, 20, 120, 20))
+        self.apply2Unchecked.setGeometry(core.QRect(0, 40, 120, 20))
 
-        self.apply2EmptyFolders.setGeometry(core.QRect(275, 150, 110, 30))
-        self.applyButton.setGeometry(core.QRect(285, 270, 80, 31))
+        self.apply2EmptyFolders.setGeometry(core.QRect(275, 150, 120, 30))
+        self.applyButton.setGeometry(core.QRect(290, 270, 80, 31))
         self.shortcutsArea.setGeometry(core.QRect(10, 25, 250, 275))  # -1px h
 
 
@@ -612,3 +617,11 @@ def warn_inaccessible_dirs(warning_parent: widgets.QWidget) -> None:
             text.format(dirs='\n'.join(d.path for d in i_dirs)),
             widgets.QMessageBox.StandardButton.Ok
         )
+
+
+def load_fonts(ret_font: str = None, ret_size: int = 9) -> Optional[gui.QFont]:
+    for fn in os.listdir(resource_path('fonts')):
+        gui.QFontDatabase.addApplicationFont(resource_path(f'fonts/{fn}'))
+
+    if ret_font:
+        return gui.QFont(ret_font, ret_size)

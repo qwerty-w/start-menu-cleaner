@@ -26,12 +26,14 @@ def main():
     cleaner.LOG.info('Application start')
     app = cleaner.widgets.QApplication([])
     window = cleaner.MainWindow()
+    app.setFont(cleaner.load_fonts('Roboto'))
 
     cleaner.set_excepthook(app)
+
+    cleaner.LOG.info('Show main window')
+    window.show()
     cleaner.warn_inaccessible_dirs(window)
 
-    window.show()
-    cleaner.LOG.info('Show main window')
     app.exec()
 
 
