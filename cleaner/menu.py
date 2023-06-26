@@ -1,6 +1,7 @@
 import os
 import struct
 import locale
+from enum import Enum
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from collections import namedtuple
@@ -357,6 +358,7 @@ class SMCleaner:
                 elif is_remove:
                     clean_f.folder.remove()
 
+                self.result.cleaned_folders += 1
                 self.LOG.info(self.L_FOLDER_HANDLED.format(action_ps), extra=extra)
                 self.LOG.info(self.L_FOLDER_END)
 

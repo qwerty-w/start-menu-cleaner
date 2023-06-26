@@ -25,8 +25,8 @@ def main():
     cleaner.LOG.setLevel(cleaner.log.logging.INFO)
     cleaner.LOG.info('Application start')
     app = cleaner.widgets.QApplication([])
-    window = cleaner.MainWindow()
     app.setFont(cleaner.load_fonts('Roboto'))
+    window = cleaner.MainWindow()
 
     cleaner.set_excepthook(app)
 

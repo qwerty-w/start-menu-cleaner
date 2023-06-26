@@ -3,9 +3,9 @@ import subprocess
 from typing import Optional
 from functools import partial
 
-from PyQt5 import QtWidgets as widgets
-from PyQt5 import QtCore as core
-from PyQt5 import QtGui as gui
+from PySide6 import QtWidgets as widgets
+from PySide6 import QtCore as core
+from PySide6 import QtGui as gui
 
 from . import log
 from .app_text import TEXT
@@ -25,12 +25,12 @@ class Widget:
         ...
 
 
-class QAction(widgets.QAction):
+class QAction(gui.QAction):
     def setText(self, text: str) -> None:
         return super().setText(' ' * 4 + text)
 
 
-class ChooseFolderButton(Widget, widgets.QLabel):
+class PathToMoveLabel(Widget, widgets.QLabel):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.setDisabled(True)
@@ -46,7 +46,7 @@ class ChooseFolderButton(Widget, widgets.QLabel):
         path = widgets.QFileDialog.getExistingDirectory(
             self,
             TEXT.SELECT_FOLDER,
-            options=widgets.QFileDialog.ShowDirsOnly
+            options=widgets.QFileDialog.Option.ShowDirsOnly
         )
 
         if not path:
@@ -62,7 +62,7 @@ class ChooseFolderButton(Widget, widgets.QLabel):
 class MoveToFolderRadioButton(Widget, widgets.QRadioButton):
     def __init__(self, mainWindow: 'MainWindow', *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.toggled.connect(lambda e: mainWindow.path2FolderLabel.setDisabled(not self.isChecked()))
+        self.toggled.connect(lambda e: mainWindow.moveRemovePath2FolderLabel.setDisabled(not self.isChecked()))
 
 
 class RemoveRadioButton(Widget, widgets.QRadioButton):
@@ -70,7 +70,7 @@ class RemoveRadioButton(Widget, widgets.QRadioButton):
         self.setChecked(True)
 
 
-class ApplyToEmptyFoldersButton(Widget, widgets.QCheckBox):
+class ApplyToEmptyFoldersCheckBox(Widget, widgets.QCheckBox):
     def __init__(self, emptyFolders: list[SMFolder], *args, **kwargs):
         self.emptyFolders = emptyFolders
 
@@ -88,7 +88,7 @@ class ApplyButton(Widget, widgets.QPushButton):
         super().__init__(*args, **kwargs)
 
     def mousePressEvent(self, event: gui.QMouseEvent) -> None:
-        if event.button() != 1:
+        if event.button() != core.Qt.MouseButton.LeftButton:
             return
 
         foldersToClean: list[StartMenu.folder_to_clean] = []
@@ -97,7 +97,7 @@ class ApplyButton(Widget, widgets.QPushButton):
                 continue
 
             folderToClean = StartMenu.folder_to_clean(guiFolder.folder, guiFolder.isKept, [], [])
-            apply2Checked = self.mainWindow.apply2Checked.isChecked()
+            apply2Checked = self.mainWindow.applyQue2CheckedRadioButton.isChecked()
 
             for guiShortcut in guiFolder.guiShortcuts:
                 if apply2Checked is guiShortcut.isChecked():
@@ -115,8 +115,8 @@ class ApplyButton(Widget, widgets.QPushButton):
                 StartMenu.folder_to_clean(f, False, [], []) for f in self.mainWindow.apply2EmptyFolders.emptyFolders
             )
 
-        if self.mainWindow.move2FolderRadioButton.isChecked():
-            path = HTML(self.mainWindow.path2FolderLabel.toolTip()).clear()
+        if self.mainWindow.moveRadioButton.isChecked():
+            path = HTML(self.mainWindow.moveRemovePath2FolderLabel.toolTip()).clear()
 
             if not path:
                 widgets.QMessageBox.critical(
@@ -303,7 +303,7 @@ class StartMenuFolderGUI(Widget, widgets.QLabel):
                     folder.setKeptState(keptState)
 
     def mousePressEvent(self, event: gui.QMouseEvent):
-        if event.button() == 1 and not self.isSkipped:
+        if event.button() == core.Qt.MouseButton.LeftButton and not self.isSkipped:
             self.reverseKeptState()
 
 
@@ -318,7 +318,7 @@ class ShortcutsArea(Widget, widgets.QScrollArea):
         super().__init__(*args, **kwargs)
 
     def initUi(self):
-        self.setVerticalScrollBarPolicy(core.Qt.ScrollBarAlwaysOn)
+        self.setVerticalScrollBarPolicy(core.Qt.ScrollBarPolicy.ScrollBarAlwaysOn)
         self.setWidgetResizable(True)
         self.setStyleSheet(
             """
@@ -385,8 +385,8 @@ class NewShortcutNameInputDialog(Widget, widgets.QInputDialog):
         self.setGeometryUi()
 
     def initUi(self):
-        self.setInputMode(widgets.QInputDialog.TextInput)
-        self.setWindowFlag(core.Qt.WindowContextHelpButtonHint, False)
+        self.setInputMode(widgets.QInputDialog.InputMode.TextInput)
+        self.setWindowFlag(core.Qt.WindowType.WindowContextHelpButtonHint, False)
         self.setModal(True)
         self.setLabelText(TEXT.ENTER_NAME)
         self.setWindowTitle(TEXT.NEW_SHORTCUT)
@@ -424,7 +424,7 @@ class AddNewShortcutButton(Widget, widgets.QPushButton):
         self.setToolTip(TEXT.ADD_NEW_SHORTCUT_TOOL_TIP)
 
     def mousePressEvent(self, event: gui.QMouseEvent) -> None:
-        if event.button() != 1:
+        if event.button() != core.Qt.MouseButton.LeftButton:
             return
 
         targetPath = widgets.QFileDialog.getOpenFileName(
@@ -495,7 +495,7 @@ class RefreshWindowButton(Widget, widgets.QPushButton):
         self.setToolTip(TEXT.REFRESH_WINDOW_TOOL_TIP)
 
     def mousePressEvent(self, event: gui.QMouseEvent) -> None:
-        if event.button() != 1:
+        if event.button() != core.Qt.MouseButton.LeftButton:
             return
 
         update_window(self.mainWindow)
@@ -526,23 +526,23 @@ class MainWindow(widgets.QMainWindow):
         self.addNewShortcutButton = AddNewShortcutButton(self.centralwidget)
         self.refreshWindowButton = RefreshWindowButton(self, self.centralwidget)
 
-        self.moveOrRemoveGeneralWidget = widgets.QWidget(self.centralwidget)
-        self.path2FolderLabel = ChooseFolderButton(self.moveOrRemoveGeneralWidget)
-        self.move2FolderRadioButton = MoveToFolderRadioButton(self, self.moveOrRemoveGeneralWidget)
-        self.removeRadioButton = RemoveRadioButton(self.moveOrRemoveGeneralWidget)
+        self.moveRemoveBlock = widgets.QWidget(self.centralwidget)
+        self.moveRemovePath2FolderLabel = PathToMoveLabel(self.moveRemoveBlock)
+        self.moveRadioButton = MoveToFolderRadioButton(self, self.moveRemoveBlock)
+        self.removeRadioButton = RemoveRadioButton(self.moveRemoveBlock)
 
-        self.apply2QuestionGeneralWidget = widgets.QWidget(self.centralwidget)
-        self.apply2Question = ApplyToQuestionLabel(self.apply2QuestionGeneralWidget)
-        self.apply2Checked = ApplyToCheckedRadioButton(self.apply2QuestionGeneralWidget)
-        self.apply2Unchecked = ApplyToUncheckedRadioButton(self.apply2QuestionGeneralWidget)
+        self.applyQueBlock = widgets.QWidget(self.centralwidget)
+        self.applyQueLabel = ApplyToQuestionLabel(self.applyQueBlock)
+        self.applyQue2CheckedRadioButton = ApplyToCheckedRadioButton(self.applyQueBlock)
+        self.applyQue2UncheckedRadioButton = ApplyToUncheckedRadioButton(self.applyQueBlock)
 
-        self.apply2EmptyFolders = ApplyToEmptyFoldersButton(emptyFolders, self.centralwidget)
+        self.apply2EmptyFolders = ApplyToEmptyFoldersCheckBox(emptyFolders, self.centralwidget)
 
         self.applyButton = ApplyButton(self, self.centralwidget)
         self.shortcutsArea = ShortcutsArea(folders, self.centralwidget)
 
         self.setFixedSize(core.QSize(402, 317))
-        self.setStyleSheet('MainWindow { background-color: #EFEFF1; }')
+        self.setStyleSheet('MainWindow { background-color: #EFEFF1; font-family: Roboto;}')
         self.setCentralWidget(self.centralwidget)
         self.retranslateUi()
         self.setGeometryUi()
@@ -552,12 +552,12 @@ class MainWindow(widgets.QMainWindow):
     def retranslateUi(self):
         _translate = core.QCoreApplication.translate
 
-        self.path2FolderLabel.setText(HTML(TEXT.SELECT_DIRECTORY).wrap_underline())
-        self.move2FolderRadioButton.setText(TEXT.MOVE_TO_DIRECTORY)
+        self.moveRemovePath2FolderLabel.setText(HTML(TEXT.SELECT_DIRECTORY).wrap_underline())
+        self.moveRadioButton.setText(TEXT.MOVE_TO_DIRECTORY)
         self.removeRadioButton.setText(TEXT.REMOVE)
-        self.apply2Question.setText(TEXT.APPLY_TO)
-        self.apply2Checked.setText(TEXT.SELECTED)
-        self.apply2Unchecked.setText(TEXT.UNSELECTED)
+        self.applyQueLabel.setText(TEXT.APPLY_TO)
+        self.applyQue2CheckedRadioButton.setText(TEXT.SELECTED)
+        self.applyQue2UncheckedRadioButton.setText(TEXT.UNSELECTED)
         self.apply2EmptyFolders.setText(TEXT.APPLY_TO_EMPTY_FOLDERS)
         self.applyButton.setText(TEXT.APPLY)
         self.setWindowTitle(TEXT.WINDOW_TITLE)
@@ -566,15 +566,15 @@ class MainWindow(widgets.QMainWindow):
         self.addNewShortcutButton.setGeometry(10, 5, 16, 16)
         self.refreshWindowButton.setGeometry(32, 5, 16, 16)
 
-        self.moveOrRemoveGeneralWidget.setGeometry(core.QRect(275, 20, 112, 60))
-        self.path2FolderLabel.setGeometry(core.QRect(0, 0, 120, 20))
-        self.move2FolderRadioButton.setGeometry(core.QRect(0, 20, 120, 20))
+        self.moveRemoveBlock.setGeometry(core.QRect(275, 20, 112, 60))
+        self.moveRemovePath2FolderLabel.setGeometry(core.QRect(0, 0, 120, 20))
+        self.moveRadioButton.setGeometry(core.QRect(0, 20, 120, 20))
         self.removeRadioButton.setGeometry(core.QRect(0, 40, 120, 20))
 
-        self.apply2QuestionGeneralWidget.setGeometry(core.QRect(275, 85, 120, 60))
-        self.apply2Question.setGeometry(core.QRect(0, 0, 120, 20))
-        self.apply2Checked.setGeometry(core.QRect(0, 20, 120, 20))
-        self.apply2Unchecked.setGeometry(core.QRect(0, 40, 120, 20))
+        self.applyQueBlock.setGeometry(core.QRect(275, 85, 120, 60))
+        self.applyQueLabel.setGeometry(core.QRect(0, 0, 120, 20))
+        self.applyQue2CheckedRadioButton.setGeometry(core.QRect(0, 20, 120, 20))
+        self.applyQue2UncheckedRadioButton.setGeometry(core.QRect(0, 40, 120, 20))
 
         self.apply2EmptyFolders.setGeometry(core.QRect(275, 150, 120, 30))
         self.applyButton.setGeometry(core.QRect(290, 270, 80, 31))
