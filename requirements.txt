@@ -1,2 +1,2 @@
-PySide6~=6.5.1.1
+PyQt5~=5.15.4
 send2trash~=1.8.0

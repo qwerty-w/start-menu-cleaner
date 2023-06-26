@@ -3,9 +3,9 @@ import subprocess
 from typing import Optional
 from functools import partial
 
-from PySide6 import QtWidgets as widgets
-from PySide6 import QtCore as core
-from PySide6 import QtGui as gui
+from PyQt5 import QtWidgets as widgets
+from PyQt5 import QtCore as core
+from PyQt5 import QtGui as gui
 
 from . import log
 from .app_text import TEXT
@@ -25,7 +25,7 @@ class Widget:
         ...
 
 
-class QAction(gui.QAction):
+class QAction(widgets.QAction):
     def setText(self, text: str) -> None:
         return super().setText(' ' * 4 + text)
 
