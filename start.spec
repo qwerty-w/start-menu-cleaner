@@ -29,6 +29,7 @@ exe = EXE(
     a.datas,
     [],
     Tree('icons', 'icons\\'),
+    Tree('fonts', 'fonts\\'),
     name='cleaner',
     debug=False,
     bootloader_ignore_signals=False,

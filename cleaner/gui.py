@@ -223,7 +223,7 @@ class StartMenuFolderGUI(Widget, widgets.QLabel):
         self.area = area
 
         self.isKept = None
-        self.keptStyleSheet = 'color: #228BE6;'
+        self.keptStyleSheet = 'color: #2979FF;'
         self.notKeptStyleSheet = 'color: #54595d;'
 
         self.isSkipped = None
@@ -324,8 +324,8 @@ class ShortcutsArea(Widget, widgets.QScrollArea):
             """
             QWidget {background-color: #FFFFFF;}
             QScrollBar {background-color: none;}
-            QScrollBar::handle:horizontal {background-color: #228BE6}
-            QScrollArea {background-color: #F0F0F0; border: 1px solid #228BE6;}
+            QScrollBar::handle:horizontal {background-color: #2979FF;}
+            QScrollArea {background-color: #F0F0F0; border: 1px solid #2979FF;}
             """
         )
         self.displayShortcuts()
@@ -414,10 +414,9 @@ class NewShortcutNameInputDialog(Widget, widgets.QInputDialog):
 
 class AddNewShortcutButton(Widget, widgets.QPushButton):
     def initUi(self):
-        self.setIcon(gui.QIcon(resource_path(r'icons\icons8-plus-math-50.png')))
+        self.setIcon(gui.QIcon(resource_path(r'icons\plus-svgrepo-com.png')))
         self.setStyleSheet("""
         QPushButton {
-            color: #ffffff;
             border: none;
         }""")
         self.setCursor(gui.QCursor(core.Qt.CursorShape.PointingHandCursor))
@@ -485,10 +484,9 @@ class RefreshWindowButton(Widget, widgets.QPushButton):
         super().__init__(*args, **kwargs)
 
     def initUi(self):
-        self.setIcon(gui.QIcon(resource_path(r'icons\icons8-synchronize-50.png')))
+        self.setIcon(gui.QIcon(resource_path(r'icons\refresh-svgrepo-com.png')))
         self.setStyleSheet("""
         QPushButton {
-            color: #ffffff;
             border: none;
         }""")
         self.setCursor(gui.QCursor(core.Qt.CursorShape.PointingHandCursor))
@@ -546,7 +544,7 @@ class MainWindow(widgets.QMainWindow):
         self.setCentralWidget(self.centralwidget)
         self.retranslateUi()
         self.setGeometryUi()
-        self.setWindowIcon(gui.QIcon(resource_path('icons/menu.png')))
+        self.setWindowIcon(gui.QIcon(resource_path('icons/menu.ico')))
         core.QMetaObject.connectSlotsByName(self)
 
     def retranslateUi(self):
@@ -563,8 +561,8 @@ class MainWindow(widgets.QMainWindow):
         self.setWindowTitle(TEXT.WINDOW_TITLE)
 
     def setGeometryUi(self):
-        self.addNewShortcutButton.setGeometry(10, 5, 16, 16)
-        self.refreshWindowButton.setGeometry(32, 5, 16, 16)
+        self.addNewShortcutButton.setGeometry(11, 5, 14, 14)
+        self.refreshWindowButton.setGeometry(34, 5, 14, 14)
 
         self.moveRemoveBlock.setGeometry(core.QRect(275, 20, 112, 60))
         self.moveRemovePath2FolderLabel.setGeometry(core.QRect(0, 0, 120, 20))
