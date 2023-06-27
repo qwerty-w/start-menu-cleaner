@@ -64,10 +64,13 @@ def warn_inaccessible_dirs(warning_parent: widgets.QWidget) -> None:
 
 def update_window(current_window: 'MainWindow') -> 'MainWindow':
     LOG.info('Update window')
+
+    pos = current_window.pos()
     current_window.close()
 
     StartMenu.update()
     w = MainWindow()
+    w.move(pos)
     w.show()
     return w
 
