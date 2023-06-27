@@ -12,9 +12,9 @@ class AppText:
     UNSELECTED = 'Unchecked'
     APPLY_TO_EMPTY_FOLDERS = 'Apply to empty\nfolders'
     APPLY = 'Apply'
-    WINDOW_TITLE = 'Start Menu Cleaner'
-    OPEN_SHORTCUT_PATH = 'Open shortcut path in explorer'
-    OPEN_TARGET_PATH = 'Open target path in explorer'
+    MAINWINDOW_TITLE = 'Start Menu Cleaner'
+    OPEN_SHORTCUT_PATH = 'Open shortcut directory in explorer'
+    OPEN_TARGET_PATH = 'Open target in explorer'
     KEEP_FOLDER = 'Keep folder'
     UNKEEP_FOLDER = 'Unkeep folder'
     SKIP_FOLDER = 'Skip folder completely'
@@ -54,6 +54,11 @@ class AppText:
                                 'them can be found in the log file ({log_fp}).\nAs a result - {cleanedFolders} ' \
                                 'folders and {appliedShortcuts} shortcuts were {actionText}'
     RENAME = 'Rename'
+    RENAME_SHORTCUT = 'Rename shortcut'
+    SHORTCUT_RENAMED = 'Shortcut "{old_name}" was renamed to "{new_name}"'
+    RENAME_SHORTCUT_NO_ACCESS = 'Access denied. Try to run application with administrator rights'
+    RENAME_SHORTCUT_ERROR = 'Unable to rename shortcut: winerror #{winerror}'
+
 
     def __getattr__(self, item):
         return QCoreApplication.translate('MainWindow', self.__dict__.get(item))
