@@ -15,9 +15,8 @@ from .utils import resource_path, HTML, validate_filename, FILENAME_FORBIDDEN_CH
 LOG = log.getLogger(__name__)
 
 
-def popEmptyFolders(folders: list[SMFolder]):
-    e = []
-    index = 0
+def popEmptyFolders(folders: list[SMFolder]) -> list[SMFolder]:
+    e, index = [], 0
 
     while index < len(folders):
         if folders[index].is_empty():
@@ -50,8 +49,7 @@ def warn_inaccessible_dirs(warning_parent: widgets.QWidget) -> None:
             widgets.QMessageBox.warning(
                 warning_parent,
                 TEXT.NO_ACCESS_WARNING,
-                TEXT.NEED_ADMIN_RIGHTS_FOR_ALL_USERS_SM_PATH.format(sys_d=StartMenu.default_dirs.system.path),
-                widgets.QMessageBox.StandardButton.Ok
+                TEXT.NEED_ADMIN_RIGHTS_FOR_ALL_USERS_SM_PATH.format(sys_d=StartMenu.default_dirs.system.path)
             )
             break
 
@@ -60,8 +58,7 @@ def warn_inaccessible_dirs(warning_parent: widgets.QWidget) -> None:
         widgets.QMessageBox.warning(
             warning_parent,
             TEXT.NO_ACCESS_WARNING,
-            text.format(dirs='\n'.join(d.path for d in i_dirs)),
-            widgets.QMessageBox.StandardButton.Ok
+            text.format(dirs='\n'.join(d.path for d in i_dirs))
         )
 
 
@@ -121,9 +118,7 @@ class EnterShortcutNameDialog(Widget, widgets.QInputDialog):
 
         if not validate_filename(name):
             return defaultCriticalBox(
-                TEXT.CHARACTERS_CANT_BE_USED.format(
-                    characters=" ".join(FILENAME_FORBIDDEN_CHARACTERS)
-                ),
+                TEXT.CHARACTERS_CANT_BE_USED.format(characters=" ".join(FILENAME_FORBIDDEN_CHARACTERS)),
                 self
             )
 
@@ -193,12 +188,7 @@ class NewShortcutButton(Widget, widgets.QPushButton):
         shortcutDir = systemDir if dialog.forAllUsersCheckbox.isChecked() else userDir
         core.QFile(targetPath).link(os.path.join(shortcutDir, name + '.lnk'))
         LOG.info(f'Add new shortcut "{name}" in "{shortcutDir}"')
-        widgets.QMessageBox.information(
-            dialog,
-            TEXT.COMPLETE,
-            TEXT.SHORTCUT_CREATED,
-            widgets.QMessageBox.StandardButton.Ok
-        )
+        widgets.QMessageBox.information(dialog, TEXT.COMPLETE, TEXT.SHORTCUT_CREATED)
 
 
 class RefreshWindowButton(Widget, widgets.QPushButton):
@@ -299,8 +289,7 @@ class StartMenuShortcutGUI(Widget, widgets.QCheckBox):
                 widgets.QMessageBox.information(
                     dialog,
                     TEXT.COMPLETE,
-                    TEXT.SHORTCUT_RENAMED.format(old_name=old_name, new_name=name),
-                    widgets.QMessageBox.StandardButton.Ok
+                    TEXT.SHORTCUT_RENAMED.format(old_name=old_name, new_name=name)
                 )
 
 
@@ -569,8 +558,7 @@ class ApplyButton(Widget, widgets.QPushButton):
                     cleanedFolders=cleanResult.cleaned_folders,
                     appliedShortcuts=cleanResult.applied_shortcuts,
                     actionText=actionText
-                ),
-                widgets.QMessageBox.StandardButton.Ok
+                )
             )
         else:
             widgets.QMessageBox.information(
@@ -580,8 +568,7 @@ class ApplyButton(Widget, widgets.QPushButton):
                     cleanedFolders=cleanResult.cleaned_folders,
                     appliedShortcuts=cleanResult.applied_shortcuts,
                     actionText=actionText
-                ),
-                widgets.QMessageBox.StandardButton.Ok
+                )
             )
 
         update_window(self.mainWindow)
