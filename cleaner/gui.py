@@ -190,17 +190,22 @@ class StartMenuShortcutGUI(Widget, widgets.QCheckBox):
     def openTargetInExplorer(self):
         subprocess.Popen(f'explorer.exe /select, "{self.targetPath}"', shell=True)
 
-    def contextMenuEvent(self, event: gui.QContextMenuEvent):
+    def contextMenuEvent(self, event: gui.QContextMenuEvent) -> None:
         menu = widgets.QMenu()
         menu.setStyleSheet('QMenu { color: black; background-color: white; }'
                            'QMenu::item:selected { color: black; background-color: #F0F0F0; }')
 
-        openInExplorerAction = QAction(self)
-        openInExplorerAction.setText(TEXT.OPEN_SHORTCUT_PATH)
-        openTargetInExplorerAction = QAction(self)
-        openTargetInExplorerAction.setText(TEXT.OPEN_TARGET_PATH)
+        openInExplorerAction = widgets.QAction(gui.QIcon(resource_path('icons/open-shortcut-directory.png')),
+                                       TEXT.OPEN_SHORTCUT_PATH, self)
+        openTargetInExplorerAction = widgets.QAction(gui.QIcon(resource_path('icons/open-shortcut-target.png')),
+                                             TEXT.OPEN_TARGET_PATH, self)
+        renameAction = widgets.QAction(gui.QIcon(resource_path('icons/rename-svgrepo-com.png')),
+                                       TEXT.RENAME, self)
 
         menu.addActions([openInExplorerAction, openTargetInExplorerAction])
+        menu.addSeparator()
+        menu.addAction(renameAction)
+
         action = menu.exec(event.globalPos())
 
         if action is openInExplorerAction:
@@ -208,6 +213,9 @@ class StartMenuShortcutGUI(Widget, widgets.QCheckBox):
 
         elif action is openTargetInExplorerAction:
             self.openTargetInExplorer()
+
+        elif action is renameAction:
+            pass  # todo
 
 
 class StartMenuFolderGUI(Widget, widgets.QLabel):

@@ -53,6 +53,7 @@ class AppText:
     HAVE_CLEAN_ERRORS_WARNING = 'During the cleanup, {errors_count} errors were caused, more information about ' \
                                 'them can be found in the log file ({log_fp}).\nAs a result - {cleanedFolders} ' \
                                 'folders and {appliedShortcuts} shortcuts were {actionText}'
+    RENAME = 'Rename'
 
     def __getattr__(self, item):
         return QCoreApplication.translate('MainWindow', self.__dict__.get(item))
