@@ -134,6 +134,9 @@ class StartMenuShortcut(SMObject):
     def __repr__(self):
         return self.path
 
+    def rename(self, new_name: str):
+        self.move(os.path.split(self.path)[0], new_name)
+
     def get_rpath(self):  # get relative path
         fpath = self.get_fpath()
         return self.path[len(fpath) + 1:]
@@ -145,10 +148,11 @@ class StartMenuShortcut(SMObject):
 
         raise ValueError('StartMenuShortcut.path does not belong to any dir from DEFAULT_START_MENU_SHORTCUTS_DIRS')
 
-    def move(self, path_to_directory: str):
-        new_p = os.path.join(path_to_directory, self.name + self.ext)
+    def move(self, path_to_directory: str, name: str = None):
+        n = name if name else self.name
+        new_p = os.path.join(path_to_directory, n + self.ext)
         os.replace(self.path, new_p)
-        self.path = new_p
+        self.__init__(new_p)
 
     def relative_move(self, path_to_directory: str):
         new_path_to_dir = os.path.join(path_to_directory, os.path.split(self.get_rpath())[0])
