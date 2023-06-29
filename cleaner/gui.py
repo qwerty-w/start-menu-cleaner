@@ -1,10 +1,13 @@
 import os
 import subprocess
+from abc import ABC, abstractmethod
+from enum import Enum
 from typing import Optional
 
 from PyQt5 import QtWidgets as widgets
 from PyQt5 import QtCore as core
 from PyQt5 import QtGui as gui
+import qt_material  # after PyQt5 !
 
 from . import log
 from .app_text import TEXT
@@ -13,19 +16,6 @@ from .utils import resource_path, HTML, validate_filename, FILENAME_FORBIDDEN_CH
 
 
 LOG = log.getLogger(__name__)
-
-
-def popEmptyFolders(folders: list[SMFolder]) -> list[SMFolder]:
-    e, index = [], 0
-
-    while index < len(folders):
-        if folders[index].is_empty():
-            e.append(folders.pop(index))
-            continue
-
-        index += 1
-
-    return e
 
 
 def load_fonts(ret_font: str = None, ret_size: int = 9) -> Optional[gui.QFont]:
@@ -62,6 +52,11 @@ def warn_inaccessible_dirs(warning_parent: widgets.QWidget) -> None:
         )
 
 
+def setAdjustGeometry(widget: widgets.QWidget, x: int, y: int, w: int = None, h: int = None):
+    widget.adjustSize()
+    widget.setGeometry(x, y, w if w else widget.width(), h if h else widget.height())
+
+
 def defaultCriticalBox(text: str, parent: widgets.QWidget = None, title: str = TEXT.ERROR) -> None:
     widgets.QMessageBox.critical(parent, title, text, widgets.QMessageBox.StandardButton.Ok)
 
@@ -82,6 +77,7 @@ class EnterShortcutNameDialog(widgets.QInputDialog):
         self.setModal(True)
         self.setFixedSize(self._size)
 
+        # noinspection PyUnresolvedReferences
         self.textValueChanged.connect(self._textValueChangedEvent)
 
     def _textValueChangedEvent(self, string: str):
@@ -117,6 +113,8 @@ class EnterShortcutNameDialog(widgets.QInputDialog):
 
 
 class NewShortcutInputDialog(EnterShortcutNameDialog):
+    forALlUsersCheckboxPosition: tuple[int, int] = None
+
     def __init__(self, parent: widgets.QWidget = None, *, icon: gui.QIcon = None):
         super().__init__(TEXT.NEW_SHORTCUT, TEXT.ENTER_NAME, parent, icon=icon)
 
@@ -124,7 +122,10 @@ class NewShortcutInputDialog(EnterShortcutNameDialog):
         self.setGeometryUi()
 
     def setGeometryUi(self):
-        self.forAllUsersCheckbox.setGeometry(210, 10, 120, 13)
+        if not self.forAllUsersCheckbox:
+            raise RuntimeError(f'need to set {type(self)}.forALlUsersCheckboxPosition')
+
+        setAdjustGeometry(self.forAllUsersCheckbox, *self.forALlUsersCheckboxPosition)
 
 
 class NewShortcutButton(widgets.QPushButton):
@@ -362,26 +363,34 @@ class StartMenuFolderGUI(widgets.QLabel):
             self.reverseKeptState()
 
 
-class ShortcutArea(widgets.QScrollArea):
-    def __init__(self, folders: list[SMFolder], *args, **kwargs):
+class ShortcutArea(widgets.QScrollArea):  # todo: move displayShortcuts and other to __init__/initUi
+    def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-        self.folders = folders
+        self.folders = StartMenu.get_folders()
+        self.emptyFolders = self.popEmptyFolders()
+
         self.guiFolders: list[StartMenuFolderGUI] = []
         self.initWidget = widgets.QWidget()
         self.initLayout = widgets.QVBoxLayout()
 
         self.setVerticalScrollBarPolicy(core.Qt.ScrollBarPolicy.ScrollBarAlwaysOn)
         self.setWidgetResizable(True)
-        self.setStyleSheet(
-            """
-            QWidget {background-color: #FFFFFF;}
-            QScrollBar {background-color: none;}
-            QScrollBar::handle:horizontal {background-color: #2979FF;}
-            QScrollArea {background-color: #F0F0F0; border: 1px solid #2979FF;}
-            """
-        )
+        self.setStyleSheet('QScrollArea {background-color: #F0F0F0; border: 1px solid #2979FF;}')
+        self.initWidget.setStyleSheet('QWidget {background-color: #FFFFFF;}')
         self.displayShortcuts()
+
+    def popEmptyFolders(self) -> list[SMFolder]:
+        e, index = [], 0
+
+        while index < len(self.folders):
+            if self.folders[index].is_empty():
+                e.append(self.folders.pop(index))
+                continue
+
+            index += 1
+
+        return e
 
     def allFoldersIsKept(self) -> bool:
         return all(folder.isKept for folder in self.guiFolders if not folder.isSkipped)
@@ -430,9 +439,9 @@ class PathToMoveLabel(widgets.QLabel):
         if not path:
             return
 
-        path = os.path.normpath(path)
+        fname = os.path.basename(os.path.normpath(path))
         metrics = gui.QFontMetrics(self.font())
-        text = metrics.elidedText(path, core.Qt.TextElideMode.ElideLeft, self.width())
+        text = metrics.elidedText(f'{TEXT.DIRECTORY}: {fname}', core.Qt.TextElideMode.ElideRight, self.width())
         self.setText(text)
         self.setToolTip(HTML(path).wrap_bold())
 
@@ -441,6 +450,7 @@ class MoveToFolderRadioButton(widgets.QRadioButton):
     def __init__(self, selectPathButton: PathToMoveLabel, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
+        # noinspection PyUnresolvedReferences
         self.toggled.connect(lambda e: selectPathButton.setDisabled(not self.isChecked()))
 
 
@@ -481,6 +491,8 @@ class ApplyButton(widgets.QPushButton):
 
         self.mainWindow = mainWindow
 
+        self.setCursor(gui.QCursor(core.Qt.CursorShape.PointingHandCursor))
+
     def mousePressEvent(self, event: gui.QMouseEvent) -> None:
         if event.button() != core.Qt.MouseButton.LeftButton:
             return
@@ -510,7 +522,7 @@ class ApplyButton(widgets.QPushButton):
             )
 
         if self.mainWindow.moveRadioButton.isChecked():
-            path = HTML(self.mainWindow.moveRemovePath2FolderLabel.toolTip()).clear()
+            path = HTML(self.mainWindow.moveRemovePathToMoveLabel.toolTip()).clear()
 
             if not path:
                 return defaultCriticalBox(TEXT.NEED_SELECT_DIRECTORY, self)
@@ -547,20 +559,124 @@ class ApplyButton(widgets.QPushButton):
         self.mainWindow.refresh()
 
 
-class MainWindow(widgets.QMainWindow):
-    def __init__(self):
-        super().__init__()
+class Stylist(ABC):
+    def __init__(self, app: widgets.QApplication, mainWindow: 'MainWindow'):
+        self.app = app
+        self.mw = mainWindow
 
-        folders = StartMenu.get_folders()
-        emptyFolders = popEmptyFolders(folders)
+    def common(self):
+        self.mw.newShortcutButton.setGeometry(11, 5, 14, 14)
+        self.mw.refreshWindowButton.setGeometry(34, 5, 14, 14)
+
+        self.mw.shortcutArea.setGeometry(10, 25, 250, 275)  # -1px h
+
+    @abstractmethod
+    def _apply(self):
+        raise NotImplemented
+
+    def apply(self):
+        self.common()
+        self._apply()
+
+
+class ClassicStylist(Stylist):
+    def _apply(self):
+        self.mw.setFixedSize(402, 317)
+        self.mw.setStyleSheet('MainWindow { background-color: #EFEFF1; font-family: Roboto; }')
+
+        # for all users button
+        NewShortcutInputDialog.forALlUsersCheckboxPosition = 210, 10
+
+        # right buttons
+        #     move or remove
+        self.mw.moveRemoveBlock.setGeometry(275, 20, 112, 60)
+        setAdjustGeometry(self.mw.moveRemovePathToMoveLabel, 0, 0)
+        setAdjustGeometry(self.mw.moveRadioButton, 0, 20, h=20)
+        setAdjustGeometry(self.mw.removeRadioButton, 0, 40, h=20)
+
+        #     to checked or to unchecked
+        self.mw.applyToBlock.setGeometry(275, 85, 112, 60)
+        setAdjustGeometry(self.mw.applyToLabel, 0, 0)
+        setAdjustGeometry(self.mw.applyToCheckedRadioButton, 0, 20, h=20)
+        setAdjustGeometry(self.mw.applyToUncheckedRadioButton, 0, 40, h=20)
+
+        #     empty folders
+        setAdjustGeometry(self.mw.apply2EmptyFolders, 275, 150)
+
+        # apply
+        self.mw.applyButton.setGeometry(290, 270, 80, 31)
+
+
+class MaterialStylist(Stylist):
+    _APP_WRAPPED = False
+
+    def _apply(self):
+        self.mw.setFixedSize(405, 317)
+        self.mw.centralwidget.setStyleSheet('background-color: #EFEFF1')
+        self.mw.shortcutArea.initLayout.setSpacing(0)
+
+        # for all users button
+        NewShortcutInputDialog.forALlUsersCheckboxPosition = 194, 1
+
+        # right buttons
+        #     move or remove
+        self.mw.moveRemoveBlock.setGeometry(270, 20, 122, 57)
+        setAdjustGeometry(self.mw.moveRemovePathToMoveLabel, 3, 0)
+        setAdjustGeometry(self.mw.moveRadioButton, 0, 17, 122, 20)
+        setAdjustGeometry(self.mw.removeRadioButton, 0, 37, 100, 20)
+
+        #     apply to checked or unchecked
+        self.mw.applyToBlock.setGeometry(270, 82, 122, 57)
+        setAdjustGeometry(self.mw.applyToLabel, 3, 0)
+        setAdjustGeometry(self.mw.applyToCheckedRadioButton, 0, 17, 100, 20)
+        setAdjustGeometry(self.mw.applyToUncheckedRadioButton, 0, 37, 100, 20)
+
+        #     empty folders
+        setAdjustGeometry(self.mw.apply2EmptyFolders, 270, 150, 115)
+
+        # apply
+        self.mw.applyButton.setGeometry(292, 270, 80, 31)
+
+        if not self._APP_WRAPPED:
+            qt_material.apply_stylesheet(self.app, theme='light_blue.xml', extra={'density_scale': '-1'})
+            type(self)._APP_WRAPPED = True
+
+            # remove focus
+            self.app.setStyleSheet(self.app.styleSheet() + """
+                                      QPushButton:focus,
+                                      QPushButton:flat:focus,
+                                      QPushButton:pressed:focus
+                                      QPushButton:checked:focus,
+                                      QMenu::indicator:focus,
+                                      QRadioButton::indicator:focus,
+                                      QCheckBox::indicator:focus
+                                      {
+                                          background-color: none;
+                                      }""")
+
+
+class Style(Enum):
+    CLASSIC = ClassicStylist
+    MATERIAL = MaterialStylist
+
+
+class MainWindow(widgets.QMainWindow):
+    def __init__(self, app: widgets.QApplication, style: Style):
+        super().__init__()
+        self.app = app
+        self.window_style = style
+
         self.centralwidget = widgets.QWidget(self)
+        self.setCentralWidget(self.centralwidget)
 
         self.newShortcutButton = NewShortcutButton(self.centralwidget)
         self.refreshWindowButton = RefreshWindowButton(self, self.centralwidget)
 
+        self.shortcutArea = ShortcutArea(self.centralwidget)
+
         self.moveRemoveBlock = widgets.QWidget(self.centralwidget)
-        self.moveRemovePath2FolderLabel = PathToMoveLabel(self.moveRemoveBlock)
-        self.moveRadioButton = MoveToFolderRadioButton(self.moveRemovePath2FolderLabel, self.moveRemoveBlock)
+        self.moveRemovePathToMoveLabel = PathToMoveLabel(self.moveRemoveBlock)
+        self.moveRadioButton = MoveToFolderRadioButton(self.moveRemovePathToMoveLabel, self.moveRemoveBlock)
         self.removeRadioButton = RemoveRadioButton(self.moveRemoveBlock)
 
         self.applyToBlock = widgets.QWidget(self.centralwidget)
@@ -568,16 +684,12 @@ class MainWindow(widgets.QMainWindow):
         self.applyToCheckedRadioButton = ApplyToCheckedRadioButton(self.applyToBlock)
         self.applyToUncheckedRadioButton = widgets.QRadioButton(self.applyToBlock)
 
-        self.apply2EmptyFolders = ApplyToEmptyFoldersCheckBox(emptyFolders, self.centralwidget)
+        self.apply2EmptyFolders = ApplyToEmptyFoldersCheckBox(self.shortcutArea.emptyFolders, self.centralwidget)
 
         self.applyButton = ApplyButton(self, self.centralwidget)
-        self.shortcutArea = ShortcutArea(folders, self.centralwidget)
 
-        self.setFixedSize(core.QSize(402, 317))
-        self.setStyleSheet('MainWindow { background-color: #EFEFF1; font-family: Roboto;}')
-        self.setCentralWidget(self.centralwidget)
         self.retranslateUi()
-        self.setGeometryUi()
+        self.window_style.value(self.app, self).apply()  # apply styles for app and MainWindow
         self.setWindowIcon(gui.QIcon(resource_path('icons/menu.ico')))
         core.QMetaObject.connectSlotsByName(self)
 
@@ -588,38 +700,22 @@ class MainWindow(widgets.QMainWindow):
         self.close()
 
         StartMenu.update()
-        w = MainWindow()
+        w = MainWindow(self.app, self.window_style)
         w.move(pos)
         w.show()
         return w
 
     def retranslateUi(self):
-        # _translate = core.QCoreApplication.translate
-
-        self.moveRemovePath2FolderLabel.setText(HTML(TEXT.SELECT_DIRECTORY).wrap_underline())
+        self.moveRemovePathToMoveLabel.setText(HTML(TEXT.SELECT_DIRECTORY).wrap_underline())
         self.moveRadioButton.setText(TEXT.MOVE_TO_DIRECTORY)
         self.removeRadioButton.setText(TEXT.REMOVE)
+
         self.applyToLabel.setText(TEXT.APPLY_TO)
         self.applyToCheckedRadioButton.setText(TEXT.SELECTED)
         self.applyToUncheckedRadioButton.setText(TEXT.UNSELECTED)
+
         self.apply2EmptyFolders.setText(TEXT.APPLY_TO_EMPTY_FOLDERS)
+
         self.applyButton.setText(TEXT.APPLY)
+
         self.setWindowTitle(TEXT.MAINWINDOW_TITLE)
-
-    def setGeometryUi(self):
-        self.newShortcutButton.setGeometry(11, 5, 14, 14)
-        self.refreshWindowButton.setGeometry(34, 5, 14, 14)
-
-        self.moveRemoveBlock.setGeometry(core.QRect(275, 20, 112, 60))
-        self.moveRemovePath2FolderLabel.setGeometry(core.QRect(0, 0, 120, 20))
-        self.moveRadioButton.setGeometry(core.QRect(0, 20, 120, 20))
-        self.removeRadioButton.setGeometry(core.QRect(0, 40, 120, 20))
-
-        self.applyToBlock.setGeometry(core.QRect(275, 85, 120, 60))
-        self.applyToLabel.setGeometry(core.QRect(0, 0, 120, 20))
-        self.applyToCheckedRadioButton.setGeometry(core.QRect(0, 20, 120, 20))
-        self.applyToUncheckedRadioButton.setGeometry(core.QRect(0, 40, 120, 20))
-
-        self.apply2EmptyFolders.setGeometry(core.QRect(275, 150, 120, 30))
-        self.applyButton.setGeometry(core.QRect(290, 270, 80, 31))
-        self.shortcutArea.setGeometry(core.QRect(10, 25, 250, 275))  # -1px h
