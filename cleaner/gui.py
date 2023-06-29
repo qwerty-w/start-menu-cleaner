@@ -62,19 +62,6 @@ def warn_inaccessible_dirs(warning_parent: widgets.QWidget) -> None:
         )
 
 
-def update_window(current_window: 'MainWindow') -> 'MainWindow':
-    LOG.info('Update window')
-
-    pos = current_window.pos()
-    current_window.close()
-
-    StartMenu.update()
-    w = MainWindow()
-    w.move(pos)
-    w.show()
-    return w
-
-
 def defaultCriticalBox(text: str, parent: widgets.QWidget = None, title: str = TEXT.ERROR) -> None:
     widgets.QMessageBox.critical(parent, title, text, widgets.QMessageBox.StandardButton.Ok)
 
@@ -198,7 +185,7 @@ class RefreshWindowButton(widgets.QPushButton):
         if event.button() != core.Qt.MouseButton.LeftButton:
             return
 
-        update_window(self.mainWindow)
+        self.mainWindow.refresh()
 
 
 class StartMenuShortcutGUI(widgets.QCheckBox):
@@ -526,7 +513,7 @@ class ApplyButton(widgets.QPushButton):
             path = HTML(self.mainWindow.moveRemovePath2FolderLabel.toolTip()).clear()
 
             if not path:
-                return defaultCriticalBox(TEXT.NEED_SELECT_DIRECTORY, self.parentWidget())
+                return defaultCriticalBox(TEXT.NEED_SELECT_DIRECTORY, self)
 
             action = StartMenu.clean_action.move(path)
             actionText = TEXT.MOVED
@@ -537,7 +524,7 @@ class ApplyButton(widgets.QPushButton):
         cleanResult = StartMenu.clean(action, foldersToClean)
         if cleanResult.errors:
             widgets.QMessageBox.warning(
-                self.parentWidget(),
+                self,
                 TEXT.WARNING,
                 TEXT.HAVE_CLEAN_ERRORS_WARNING.format(
                     errors_count=len(cleanResult.errors),
@@ -549,7 +536,7 @@ class ApplyButton(widgets.QPushButton):
             )
         else:
             widgets.QMessageBox.information(
-                self.parentWidget(),
+                self,
                 TEXT.COMPLETE,
                 TEXT.APPLY_CLEANED.format(
                     cleanedFolders=cleanResult.cleaned_folders,
@@ -557,8 +544,7 @@ class ApplyButton(widgets.QPushButton):
                     actionText=actionText
                 )
             )
-
-        update_window(self.mainWindow)
+        self.mainWindow.refresh()
 
 
 class MainWindow(widgets.QMainWindow):
@@ -594,6 +580,18 @@ class MainWindow(widgets.QMainWindow):
         self.setGeometryUi()
         self.setWindowIcon(gui.QIcon(resource_path('icons/menu.ico')))
         core.QMetaObject.connectSlotsByName(self)
+
+    def refresh(self) -> 'MainWindow':
+        LOG.info('Update window')
+
+        pos = self.pos()
+        self.close()
+
+        StartMenu.update()
+        w = MainWindow()
+        w.move(pos)
+        w.show()
+        return w
 
     def retranslateUi(self):
         # _translate = core.QCoreApplication.translate
