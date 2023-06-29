@@ -79,38 +79,27 @@ def defaultCriticalBox(text: str, parent: widgets.QWidget = None, title: str = T
     widgets.QMessageBox.critical(parent, title, text, widgets.QMessageBox.StandardButton.Ok)
 
 
-class Widget:
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.initUi()
-
-    def initUi(self):
-        ...
-
-
-class EnterShortcutNameDialog(Widget, widgets.QInputDialog):
+class EnterShortcutNameDialog(widgets.QInputDialog):
     MAX_TEXT_VALUE_LENGTH = 200
 
     def __init__(self, title: str, text: str, parent: widgets.QWidget = None, *, icon: gui.QIcon = None):
-        self._size = core.QSize(300, 91)
         super().__init__(parent=parent)
-        self.setWindowTitle(title)
-        self.setLabelText(text)
+        self._size = core.QSize(300, 91)
 
         if icon:
             self.setWindowIcon(icon)
+        self.setWindowTitle(title)
+        self.setLabelText(text)
+        self.setInputMode(widgets.QInputDialog.InputMode.TextInput)
+        self.setWindowFlag(core.Qt.WindowType.WindowContextHelpButtonHint, False)
+        self.setModal(True)
+        self.setFixedSize(self._size)
 
         self.textValueChanged.connect(self._textValueChangedEvent)
 
     def _textValueChangedEvent(self, string: str):
         if len(string) > self.MAX_TEXT_VALUE_LENGTH:
             self.setTextValue(string[:self.MAX_TEXT_VALUE_LENGTH])
-
-    def initUi(self):
-        self.setInputMode(widgets.QInputDialog.InputMode.TextInput)
-        self.setWindowFlag(core.Qt.WindowType.WindowContextHelpButtonHint, False)
-        self.setModal(True)
-        self.setFixedSize(self._size)
 
     def get_validated_name(self, code: int, name: str) -> Optional[str]:
         if not code:
@@ -140,24 +129,21 @@ class EnterShortcutNameDialog(Widget, widgets.QInputDialog):
             super().setFixedSize(self._size)
 
 
-class ForAllUsersNewShortcutDialogCheckbox(Widget, widgets.QCheckBox):
-    def initUi(self):
-        self.setText(TEXT.FOR_ALL_USERS)
-
-
 class NewShortcutInputDialog(EnterShortcutNameDialog):
     def __init__(self, parent: widgets.QWidget = None, *, icon: gui.QIcon = None):
         super().__init__(TEXT.NEW_SHORTCUT, TEXT.ENTER_NAME, parent, icon=icon)
 
-        self.forAllUsersCheckbox = ForAllUsersNewShortcutDialogCheckbox(self)
+        self.forAllUsersCheckbox = widgets.QCheckBox(TEXT.FOR_ALL_USERS, self)
         self.setGeometryUi()
 
     def setGeometryUi(self):
         self.forAllUsersCheckbox.setGeometry(210, 10, 120, 13)
 
 
-class NewShortcutButton(Widget, widgets.QPushButton):
-    def initUi(self):
+class NewShortcutButton(widgets.QPushButton):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
         self.setIcon(gui.QIcon(resource_path(r'icons\plus-svgrepo-com.png')))
         self.setStyleSheet("""
         QPushButton {
@@ -194,12 +180,12 @@ class NewShortcutButton(Widget, widgets.QPushButton):
         widgets.QMessageBox.information(dialog, TEXT.COMPLETE, TEXT.SHORTCUT_CREATED)
 
 
-class RefreshWindowButton(Widget, widgets.QPushButton):
+class RefreshWindowButton(widgets.QPushButton):
     def __init__(self, mainWindow: 'MainWindow', *args, **kwargs):
-        self.mainWindow = mainWindow
         super().__init__(*args, **kwargs)
 
-    def initUi(self):
+        self.mainWindow = mainWindow
+
         self.setIcon(gui.QIcon(resource_path(r'icons\refresh-svgrepo-com.png')))
         self.setStyleSheet("""
         QPushButton {
@@ -215,18 +201,19 @@ class RefreshWindowButton(Widget, widgets.QPushButton):
         update_window(self.mainWindow)
 
 
-class StartMenuShortcutGUI(Widget, widgets.QCheckBox):
+class StartMenuShortcutGUI(widgets.QCheckBox):
     iconProvider = widgets.QFileIconProvider()
 
     def __init__(self, shortcut: StartMenuShortcut, *args, **kwargs):
-        self.shortcut = shortcut
+        super().__init__(*args, **kwargs)
 
+        self.shortcut = shortcut
         rawPath = core.QFileInfo(self.shortcut.path).symLinkTarget()
         self.targetPath = os.path.normpath(rawPath) if rawPath else None
 
-        super().__init__(*args, **kwargs)
+        self.updateUI()
 
-    def initUi(self):
+    def updateUI(self):
         self.setText(self.shortcut.name)
         self.setIcon(self.getIcon())
 
@@ -270,7 +257,7 @@ class StartMenuShortcutGUI(Widget, widgets.QCheckBox):
             self.openTargetInExplorer()
 
         elif action is renameAction:
-            dialog = EnterShortcutNameDialog(TEXT.RENAME_SHORTCUT, TEXT.ENTER_NAME, icon=self.getIcon())
+            dialog = EnterShortcutNameDialog(TEXT.RENAME_SHORTCUT, TEXT.ENTER_NAME, icon=self.icon())
             dialog.setTextValue(self.shortcut.name)
 
             if not (name := dialog.get_validated_name(dialog.exec(), dialog.textValue())):
@@ -287,8 +274,8 @@ class StartMenuShortcutGUI(Widget, widgets.QCheckBox):
                     defaultCriticalBox(TEXT.RENAME_SHORTCUT_ERROR.format(winerror=e.winerror), dialog)
 
             else:
-                self.initUi()
-                dialog.setWindowIcon(self.getIcon())
+                self.updateUI()
+                dialog.setWindowIcon(self.icon())
                 widgets.QMessageBox.information(
                     dialog,
                     TEXT.COMPLETE,
@@ -296,13 +283,14 @@ class StartMenuShortcutGUI(Widget, widgets.QCheckBox):
                 )
 
 
-class StartMenuFolderGUI(Widget, widgets.QLabel):
+class StartMenuFolderGUI(widgets.QLabel):
     def __init__(self,
                  folder: SMFolder,
                  guiShortcuts: list[StartMenuShortcutGUI],
                  area: 'ShortcutArea',
                  *args,
                  **kwargs):
+        super().__init__(area, *args, **kwargs)
 
         self.folder = folder
         self.guiShortcuts = guiShortcuts
@@ -315,9 +303,6 @@ class StartMenuFolderGUI(Widget, widgets.QLabel):
         self.isSkipped = None
         self.isKeptBeforeSkipping = None
 
-        super().__init__(area, *args, **kwargs)
-
-    def initUi(self):
         self.setText(self.folder.name)
         self.setKeptState(True)
         self.setSkippedState(False)
@@ -390,17 +375,15 @@ class StartMenuFolderGUI(Widget, widgets.QLabel):
             self.reverseKeptState()
 
 
-class ShortcutArea(Widget, widgets.QScrollArea):
+class ShortcutArea(widgets.QScrollArea):
     def __init__(self, folders: list[SMFolder], *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
         self.folders = folders
         self.guiFolders: list[StartMenuFolderGUI] = []
-
         self.initWidget = widgets.QWidget()
         self.initLayout = widgets.QVBoxLayout()
 
-        super().__init__(*args, **kwargs)
-
-    def initUi(self):
         self.setVerticalScrollBarPolicy(core.Qt.ScrollBarPolicy.ScrollBarAlwaysOn)
         self.setWidgetResizable(True)
         self.setStyleSheet(
@@ -439,17 +422,16 @@ class ShortcutArea(Widget, widgets.QScrollArea):
         self.showWidgets()
 
 
-class PathToMoveLabel(Widget, widgets.QLabel):
+class PathToMoveLabel(widgets.QLabel):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.setDisabled(True)
 
+        self.setCursor(gui.QCursor(core.Qt.CursorShape.PointingHandCursor))  # set cursor: pointer
+
     def setDisabled(self, a0: bool) -> None:
         self.setStyleSheet(f'color: {"#808080" if a0 else "#494242"}')
         return super().setDisabled(a0)
-
-    def initUi(self):
-        self.setCursor(gui.QCursor(core.Qt.CursorShape.PointingHandCursor))  # set cursor: pointer
 
     def mousePressEvent(self, event: gui.QMouseEvent) -> None:
         path = widgets.QFileDialog.getExistingDirectory(
@@ -468,47 +450,49 @@ class PathToMoveLabel(Widget, widgets.QLabel):
         self.setToolTip(HTML(path).wrap_bold())
 
 
-class MoveToFolderRadioButton(Widget, widgets.QRadioButton):
+class MoveToFolderRadioButton(widgets.QRadioButton):
     def __init__(self, selectPathButton: PathToMoveLabel, *args, **kwargs):
         super().__init__(*args, **kwargs)
+
         self.toggled.connect(lambda e: selectPathButton.setDisabled(not self.isChecked()))
 
 
-class RemoveRadioButton(Widget, widgets.QRadioButton):
-    def initUi(self):
+class RemoveRadioButton(widgets.QRadioButton):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
         self.setChecked(True)
 
 
-class ApplyToLabel(Widget, widgets.QLabel):
-    def initUi(self):
+class ApplyToLabel(widgets.QLabel):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
         self.setStyleSheet('color: #54595d;')
 
 
-class ApplyToCheckedRadioButton(Widget, widgets.QRadioButton):
-    def initUi(self):
+class ApplyToCheckedRadioButton(widgets.QRadioButton):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
         self.setChecked(True)
 
 
-class ApplyToUncheckedRadioButton(Widget, widgets.QRadioButton):
-    pass
-
-
-class ApplyToEmptyFoldersCheckBox(Widget, widgets.QCheckBox):
+class ApplyToEmptyFoldersCheckBox(widgets.QCheckBox):
     def __init__(self, emptyFolders: list[SMFolder], *args, **kwargs):
-        self.emptyFolders = emptyFolders
-
         super().__init__(*args, **kwargs)
 
-    def initUi(self):
+        self.emptyFolders = emptyFolders
+
         tip = TEXT.NO_EMPTY_FOLDERS if not self.emptyFolders else ', '.join(f'"{x.name}"' for x in self.emptyFolders)
         self.setToolTip(tip)
 
 
-class ApplyButton(Widget, widgets.QPushButton):
+class ApplyButton(widgets.QPushButton):
     def __init__(self, mainWindow: 'MainWindow', *args, **kwargs):
-        self.mainWindow = mainWindow
-
         super().__init__(*args, **kwargs)
+
+        self.mainWindow = mainWindow
 
     def mousePressEvent(self, event: gui.QMouseEvent) -> None:
         if event.button() != core.Qt.MouseButton.LeftButton:
@@ -596,7 +580,7 @@ class MainWindow(widgets.QMainWindow):
         self.applyToBlock = widgets.QWidget(self.centralwidget)
         self.applyToLabel = ApplyToLabel(self.applyToBlock)
         self.applyToCheckedRadioButton = ApplyToCheckedRadioButton(self.applyToBlock)
-        self.applyToUncheckedRadioButton = ApplyToUncheckedRadioButton(self.applyToBlock)
+        self.applyToUncheckedRadioButton = widgets.QRadioButton(self.applyToBlock)
 
         self.apply2EmptyFolders = ApplyToEmptyFoldersCheckBox(emptyFolders, self.centralwidget)
 
