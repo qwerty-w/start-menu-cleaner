@@ -20,8 +20,12 @@ LOG = log.getLogger(__name__)
 
 
 def load_fonts(ret_font: str = None, ret_size: int = 9) -> Optional[gui.QFont]:
-    for fn in os.listdir(resource_path('fonts')):
+    fnames = os.listdir(resource_path('fonts'))
+
+    for fn in fnames:
         gui.QFontDatabase.addApplicationFont(resource_path(f'fonts/{fn}'))
+
+    LOG.info(f'Load fonts: [{", ".join(fnames)}]')
 
     if ret_font:
         return gui.QFont(ret_font, ret_size)
@@ -76,6 +80,8 @@ class MessageBox:
 
         if defaultButton:
             box.setDefaultButton(defaultButton)
+
+        LOG.debug(f'Execute <{icon}> MessageBox ["{title}" | {parent}]')
 
         soundName = 'SystemHand' if icon is widgets.QMessageBox.Icon.Critical else 'SystemExclamation'
         winsound.PlaySound(soundName, winsound.SND_ASYNC)
@@ -205,6 +211,7 @@ class NewShortcutButton(widgets.QPushButton):
         iconProvider = widgets.QFileIconProvider()
         dialog = NewShortcutInputDialog(icon=iconProvider.icon(core.QFileInfo(targetPath)))
 
+        LOG.debug('Execute "New shortcut" dialog')
         if not (name := dialog.get_validated_name(dialog.exec(), dialog.textValue())):
             return
 
@@ -291,9 +298,11 @@ class StartMenuShortcutGUI(widgets.QCheckBox):
         action = menu.exec(event.globalPos())
 
         if action is openInExplorerAction:
+            LOG.debug(f'Open shortcut "{self.shortcut.name}" path')
             self.openInExplorer()
 
         elif action is openTargetInExplorerAction:
+            LOG.debug(f'Open shortcut "{self.shortcut.name}" target')
             self.openTargetInExplorer()
 
         elif action is renameAction:
@@ -307,6 +316,7 @@ class StartMenuShortcutGUI(widgets.QCheckBox):
             try:
                 self.shortcut.rename(name)
             except OSError as e:
+                LOG.info(f'Failed to rename shortcut "{old_name}"')
                 if e.winerror == 5:
                     MessageBox.critical(TEXT.RENAME_SHORTCUT_NO_ACCESS, parent=dialog)
 
@@ -316,6 +326,7 @@ class StartMenuShortcutGUI(widgets.QCheckBox):
             else:
                 self.updateUI()
                 dialog.setWindowIcon(self.icon())
+                LOG.info(f'Shortcut "{old_name}" was renamed to "{self.shortcut.name}"')
                 MessageBox.information(
                     TEXT.SHORTCUT_RENAMED.format(old_name=old_name, new_name=name),
                     TEXT.COMPLETE,
@@ -496,6 +507,7 @@ class PathToMoveLabel(widgets.QLabel):
         text = metrics.elidedText(f'{TEXT.DIRECTORY}: {fname}', core.Qt.TextElideMode.ElideRight, self.width())
         self.setText(text)
         self.setToolTip(HTML(path).wrap_bold())
+        LOG.debug(f'Set "{path}" as moving path')
 
 
 class MoveToFolderRadioButton(widgets.QRadioButton):
@@ -548,6 +560,8 @@ class ApplyButton(widgets.QPushButton):
     def mousePressEvent(self, event: gui.QMouseEvent) -> None:
         if event.button() != core.Qt.MouseButton.LeftButton:
             return
+
+        LOG.debug('Apply...')
 
         foldersToClean: list[StartMenu.folder_to_clean] = []
         for guiFolder in self.mainWindow.shortcutArea.guiFolders:
@@ -629,6 +643,7 @@ class Stylist(ABC):
     def apply(self):
         self.common()
         self._apply()
+        LOG.debug(f'<{type(self).__name__}> apply')
 
 
 class ClassicStylist(Stylist):
