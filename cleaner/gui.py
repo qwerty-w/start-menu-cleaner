@@ -170,7 +170,7 @@ class EnterShortcutNameDialog(widgets.QInputDialog):
 
 
 class NewShortcutInputDialog(EnterShortcutNameDialog):
-    forALlUsersCheckboxPosition: tuple[int, int] = None
+    forAllUsersCheckboxPosition: tuple[int, int] = None
 
     def __init__(self, parent: widgets.QWidget = None, *, icon: gui.QIcon = None):
         super().__init__(TEXT.NEW_SHORTCUT, TEXT.ENTER_NAME, parent, icon=icon)
@@ -179,10 +179,10 @@ class NewShortcutInputDialog(EnterShortcutNameDialog):
         self.setGeometryUi()
 
     def setGeometryUi(self):
-        if not self.forAllUsersCheckbox:
-            raise RuntimeError(f'need to set {type(self)}.forALlUsersCheckboxPosition')
+        if not self.forAllUsersCheckboxPosition:
+            raise RuntimeError(f'need to set {type(self)}.forAllUsersCheckboxPosition')
 
-        setAdjustGeometry(self.forAllUsersCheckbox, *self.forALlUsersCheckboxPosition)
+        setAdjustGeometry(self.forAllUsersCheckbox, *self.forAllUsersCheckboxPosition)
 
 
 class NewShortcutButton(widgets.QPushButton):
@@ -426,7 +426,7 @@ class StartMenuFolderGUI(widgets.QLabel):
             self.reverseKeptState()
 
 
-class ShortcutArea(widgets.QScrollArea):  # todo: move displayShortcuts and other to __init__/initUi
+class ShortcutArea(widgets.QScrollArea):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
@@ -461,7 +461,7 @@ class ShortcutArea(widgets.QScrollArea):  # todo: move displayShortcuts and othe
     def addWidget(self, widget: widgets.QWidget):
         self.initLayout.addWidget(widget)
 
-    def showWidgets(self):
+    def setWidgets(self):
         self.initLayout.addStretch()
         self.initWidget.setLayout(self.initLayout)
         self.setWidget(self.initWidget)
@@ -478,7 +478,7 @@ class ShortcutArea(widgets.QScrollArea):  # todo: move displayShortcuts and othe
 
             self.guiFolders.append(guiFolder)
 
-        self.showWidgets()
+        self.setWidgets()
 
 
 class PathToMoveLabel(widgets.QLabel):
@@ -652,7 +652,7 @@ class ClassicStylist(Stylist):
         self.mw.setStyleSheet('MainWindow { background-color: #EFEFF1; font-family: Roboto; }')
 
         # for all users button
-        NewShortcutInputDialog.forALlUsersCheckboxPosition = 210, 10
+        NewShortcutInputDialog.forAllUsersCheckboxPosition = 210, 10
 
         # right buttons
         #     move or remove
@@ -683,7 +683,7 @@ class MaterialStylist(Stylist):
         self.mw.shortcutArea.initLayout.setSpacing(0)
 
         # for all users button
-        NewShortcutInputDialog.forALlUsersCheckboxPosition = 194, 1
+        NewShortcutInputDialog.forAllUsersCheckboxPosition = 194, 1
 
         # right buttons
         #     move or remove
@@ -764,7 +764,7 @@ class MainWindow(widgets.QMainWindow):
         LOG.info('Update window')
 
         pos = self.pos()
-        self.close()
+        self.deleteLater()
 
         StartMenu.update()
         w = MainWindow(self.app, self.window_style)
