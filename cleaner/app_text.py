@@ -59,6 +59,8 @@ class AppText:
     RENAME_SHORTCUT_NO_ACCESS = 'Access denied. Try to run application with administrator rights'
     RENAME_SHORTCUT_ERROR = 'Unable to rename shortcut: winerror #{winerror}'
     DIRECTORY = 'Directory'
+    QUESTION = 'Question'
+    INFO = 'Info'
 
 
     def __getattr__(self, item):

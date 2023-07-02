@@ -1,12 +1,13 @@
 import os
+import winsound
 import subprocess
-from abc import ABC, abstractmethod
 from enum import Enum
 from typing import Optional
+from abc import ABC, abstractmethod
 
-from PyQt5 import QtWidgets as widgets
-from PyQt5 import QtCore as core
-from PyQt5 import QtGui as gui
+from PySide6 import QtWidgets as widgets
+from PySide6 import QtCore as core
+from PySide6 import QtGui as gui
 import qt_material  # after PyQt5 !
 
 from . import log
@@ -36,19 +37,19 @@ def warn_inaccessible_dirs(warning_parent: widgets.QWidget) -> None:
 
     for d in i_dirs:
         if d is StartMenu.default_dirs.system:
-            widgets.QMessageBox.warning(
-                warning_parent,
+            MessageBox.warning(
+                TEXT.NEED_ADMIN_RIGHTS_FOR_ALL_USERS_SM_PATH.format(sys_d=StartMenu.default_dirs.system.path),
                 TEXT.NO_ACCESS_WARNING,
-                TEXT.NEED_ADMIN_RIGHTS_FOR_ALL_USERS_SM_PATH.format(sys_d=StartMenu.default_dirs.system.path)
+                warning_parent,
             )
             break
 
     else:
         text = TEXT.NO_ACCESS_TO_DIRS if len(i_dirs) > 1 else TEXT.NO_ACCESS_TO_DIR
-        widgets.QMessageBox.warning(
-            warning_parent,
+        MessageBox.warning(
+            text.format(dirs='\n'.join(d.path for d in i_dirs)),
             TEXT.NO_ACCESS_WARNING,
-            text.format(dirs='\n'.join(d.path for d in i_dirs))
+            warning_parent
         )
 
 
@@ -57,8 +58,56 @@ def setAdjustGeometry(widget: widgets.QWidget, x: int, y: int, w: int = None, h:
     widget.setGeometry(x, y, w if w else widget.width(), h if h else widget.height())
 
 
-def defaultCriticalBox(text: str, parent: widgets.QWidget = None, title: str = TEXT.ERROR) -> None:
-    widgets.QMessageBox.critical(parent, title, text, widgets.QMessageBox.StandardButton.Ok)
+class MessageBox:
+    Icon = widgets.QMessageBox.Icon
+    Button = widgets.QMessageBox.StandardButton
+
+    @classmethod
+    def box(cls, icon: widgets.QMessageBox.Icon, title: str, text: str, parent: widgets.QWidget = None,
+            buttons: widgets.QMessageBox.StandardButton = widgets.QMessageBox.StandardButton.Ok,
+            defaultButton: widgets.QMessageBox.StandardButton = None,
+            flags: core.Qt.WindowType = None) -> widgets.QMessageBox.StandardButton:
+        args = [icon, title, text, buttons, parent]
+
+        if flags:
+            args.append(flags)
+
+        box = widgets.QMessageBox(*args)
+
+        if defaultButton:
+            box.setDefaultButton(defaultButton)
+
+        soundName = 'SystemHand' if icon is widgets.QMessageBox.Icon.Critical else 'SystemExclamation'
+        winsound.PlaySound(soundName, winsound.SND_ASYNC)
+        return widgets.QMessageBox.StandardButton(box.exec())
+
+    @classmethod
+    def question(cls, text: str, title: str = TEXT.QUESTION, parent: widgets.QWidget = None,
+                 buttons: widgets.QMessageBox.StandardButton = widgets.QMessageBox.StandardButton.Yes | \
+                 widgets.QMessageBox.StandardButton.No, defaultButton: widgets.QMessageBox.StandardButton = None,
+                 flags: core.Qt.WindowType = None) -> widgets.QMessageBox.StandardButton:
+        return cls.box(widgets.QMessageBox.Icon.Question, title, text, parent, buttons, defaultButton, flags)
+
+    @classmethod
+    def information(cls, text: str, title: str = TEXT.INFO, parent: widgets.QWidget = None,
+                 buttons: widgets.QMessageBox.StandardButton = widgets.QMessageBox.StandardButton.Ok,
+                 defaultButton: widgets.QMessageBox.StandardButton = None,
+                 flags: core.Qt.WindowType = None) -> widgets.QMessageBox.StandardButton:
+        return cls.box(widgets.QMessageBox.Icon.Information, title, text, parent, buttons, defaultButton, flags)
+
+    @classmethod
+    def warning(cls, text: str, title: str = TEXT.WARNING, parent: widgets.QWidget = None,
+                 buttons: widgets.QMessageBox.StandardButton = widgets.QMessageBox.StandardButton.Ok,
+                 defaultButton: widgets.QMessageBox.StandardButton = None,
+                 flags: core.Qt.WindowType = None) -> widgets.QMessageBox.StandardButton:
+        return cls.box(widgets.QMessageBox.Icon.Warning, title, text, parent, buttons, defaultButton, flags)
+
+    @classmethod
+    def critical(cls, text: str, title: str = TEXT.ERROR, parent: widgets.QWidget = None,
+                 buttons: widgets.QMessageBox.StandardButton = widgets.QMessageBox.StandardButton.Ok,
+                 defaultButton: widgets.QMessageBox.StandardButton = None,
+                 flags: core.Qt.WindowType = None) -> widgets.QMessageBox.StandardButton:
+        return cls.box(widgets.QMessageBox.Icon.Critical, title, text, parent, buttons, defaultButton, flags)
 
 
 class EnterShortcutNameDialog(widgets.QInputDialog):
@@ -89,13 +138,15 @@ class EnterShortcutNameDialog(widgets.QInputDialog):
             return
 
         if not name:
-            return defaultCriticalBox(TEXT.NAME_CANT_BE_EMPTY, self)
+            MessageBox.critical(TEXT.NAME_CANT_BE_EMPTY, parent=self)
+            return
 
         if not validate_filename(name):
-            return defaultCriticalBox(
+            MessageBox.critical(
                 TEXT.CHARACTERS_CANT_BE_USED.format(characters=" ".join(FILENAME_FORBIDDEN_CHARACTERS)),
-                self
+                parent=self
             )
+            return
 
         return name
 
@@ -160,12 +211,13 @@ class NewShortcutButton(widgets.QPushButton):
         systemDir, userDir = StartMenu.default_dirs.system, StartMenu.default_dirs.user
 
         if dialog.forAllUsersCheckbox.isChecked() and not systemDir.is_accessible:
-            return defaultCriticalBox(TEXT.NEED_ADMIN_RIGHTS_FOR_CREATE_ALL_USERS_SHORTCUT, dialog)
+            MessageBox.critical(TEXT.NEED_ADMIN_RIGHTS_FOR_CREATE_ALL_USERS_SHORTCUT, parent=dialog)
+            return
 
         shortcutDir = systemDir if dialog.forAllUsersCheckbox.isChecked() else userDir
         core.QFile(targetPath).link(os.path.join(shortcutDir, name + '.lnk'))
         LOG.info(f'Add new shortcut "{name}" in "{shortcutDir}"')
-        widgets.QMessageBox.information(dialog, TEXT.COMPLETE, TEXT.SHORTCUT_CREATED)
+        MessageBox.information(TEXT.SHORTCUT_CREATED, TEXT.COMPLETE, parent=dialog)
 
 
 class RefreshWindowButton(widgets.QPushButton):
@@ -225,11 +277,11 @@ class StartMenuShortcutGUI(widgets.QCheckBox):
         menu.setStyleSheet('QMenu { color: black; background-color: white; }'
                            'QMenu::item:selected { color: black; background-color: #F0F0F0; }')
 
-        openInExplorerAction = widgets.QAction(gui.QIcon(resource_path('icons/open-shortcut-directory.png')),
+        openInExplorerAction = gui.QAction(gui.QIcon(resource_path('icons/open-shortcut-directory.png')),
                                        TEXT.OPEN_SHORTCUT_PATH, self)
-        openTargetInExplorerAction = widgets.QAction(gui.QIcon(resource_path('icons/open-shortcut-target.png')),
+        openTargetInExplorerAction = gui.QAction(gui.QIcon(resource_path('icons/open-shortcut-target.png')),
                                              TEXT.OPEN_TARGET_PATH, self)
-        renameAction = widgets.QAction(gui.QIcon(resource_path('icons/rename-svgrepo-com.png')),
+        renameAction = gui.QAction(gui.QIcon(resource_path('icons/rename-svgrepo-com.png')),
                                        TEXT.RENAME, self)
 
         menu.addActions([openInExplorerAction, openTargetInExplorerAction])
@@ -256,18 +308,18 @@ class StartMenuShortcutGUI(widgets.QCheckBox):
                 self.shortcut.rename(name)
             except OSError as e:
                 if e.winerror == 5:
-                    defaultCriticalBox(TEXT.RENAME_SHORTCUT_NO_ACCESS, dialog)
+                    MessageBox.critical(TEXT.RENAME_SHORTCUT_NO_ACCESS, parent=dialog)
 
                 else:
-                    defaultCriticalBox(TEXT.RENAME_SHORTCUT_ERROR.format(winerror=e.winerror), dialog)
+                    MessageBox.critical(TEXT.RENAME_SHORTCUT_ERROR.format(winerror=e.winerror), parent=dialog)
 
             else:
                 self.updateUI()
                 dialog.setWindowIcon(self.icon())
-                widgets.QMessageBox.information(
-                    dialog,
+                MessageBox.information(
+                    TEXT.SHORTCUT_RENAMED.format(old_name=old_name, new_name=name),
                     TEXT.COMPLETE,
-                    TEXT.SHORTCUT_RENAMED.format(old_name=old_name, new_name=name)
+                    parent=dialog
                 )
 
 
@@ -326,13 +378,13 @@ class StartMenuFolderGUI(widgets.QLabel):
         menu.setStyleSheet('QMenu { color: black; background-color: white; }'
                            'QMenu::item:selected { color: black; background-color: #F0F0F0; }')
 
-        keepAction = widgets.QAction(TEXT.UNKEEP_FOLDER if self.isKept else TEXT.KEEP_FOLDER, self)
+        keepAction = gui.QAction(TEXT.UNKEEP_FOLDER if self.isKept else TEXT.KEEP_FOLDER, self)
 
-        keepAllFoldersAction = widgets.QAction(self)
+        keepAllFoldersAction = gui.QAction(self)
         allFoldersIsKept = self.area.allFoldersIsKept()
         keepAllFoldersAction.setText(TEXT.UNKEEP_ALL_FOLDERS if allFoldersIsKept else TEXT.KEEP_ALL_FOLDERS)
 
-        skipAction = widgets.QAction(TEXT.DONT_SKIP_FOLDER if self.isSkipped else TEXT.SKIP_FOLDER, self)
+        skipAction = gui.QAction(TEXT.DONT_SKIP_FOLDER if self.isSkipped else TEXT.SKIP_FOLDER, self)
 
         menu.addActions([
             keepAction,
@@ -525,7 +577,8 @@ class ApplyButton(widgets.QPushButton):
             path = HTML(self.mainWindow.moveRemovePathToMoveLabel.toolTip()).clear()
 
             if not path:
-                return defaultCriticalBox(TEXT.NEED_SELECT_DIRECTORY, self)
+                MessageBox.critical(TEXT.NEED_SELECT_DIRECTORY, parent=self)
+                return
 
             action = StartMenu.clean_action.move(path)
             actionText = TEXT.MOVED
@@ -535,26 +588,25 @@ class ApplyButton(widgets.QPushButton):
 
         cleanResult = StartMenu.clean(action, foldersToClean)
         if cleanResult.errors:
-            widgets.QMessageBox.warning(
-                self,
-                TEXT.WARNING,
+            MessageBox.warning(
                 TEXT.HAVE_CLEAN_ERRORS_WARNING.format(
                     errors_count=len(cleanResult.errors),
                     log_fp=cleanResult.log_fp,
                     cleanedFolders=cleanResult.cleaned_folders,
                     appliedShortcuts=cleanResult.applied_shortcuts,
                     actionText=actionText
-                )
+                ),
+                parent=self
             )
         else:
-            widgets.QMessageBox.information(
-                self,
-                TEXT.COMPLETE,
+            MessageBox.information(
                 TEXT.APPLY_CLEANED.format(
                     cleanedFolders=cleanResult.cleaned_folders,
                     appliedShortcuts=cleanResult.applied_shortcuts,
                     actionText=actionText
-                )
+                ),
+                TEXT.COMPLETE,
+                parent=self
             )
         self.mainWindow.refresh()
 
