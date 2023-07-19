@@ -8,7 +8,7 @@ from abc import ABC, abstractmethod
 from PySide6 import QtWidgets as widgets
 from PySide6 import QtCore as core
 from PySide6 import QtGui as gui
-import qt_material  # after PyQt5 !
+import qt_material  # after PyQt !
 
 from . import log
 from .app_text import TEXT
