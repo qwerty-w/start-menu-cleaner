@@ -1,4 +1,3 @@
-from PyQt5.QtCore import QCoreApplication
 
 
 class AppText:
@@ -61,10 +60,6 @@ class AppText:
     DIRECTORY = 'Directory'
     QUESTION = 'Question'
     INFO = 'Info'
-
-
-    def __getattr__(self, item):
-        return QCoreApplication.translate('MainWindow', self.__dict__.get(item))
 
 
 TEXT = AppText()
