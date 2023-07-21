@@ -1,7 +1,7 @@
-import os
 import sys
 
 from . import log
+from .config import CONFIG
 from .menu import StartMenu
 from .gui import MainWindow, widgets, warn_inaccessible_dirs, load_fonts
 
