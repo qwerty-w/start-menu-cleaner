@@ -29,7 +29,7 @@ def load_fonts(ret_font: str = None, ret_size: int = 9) -> Optional[gui.QFont]:
             gui.QFontDatabase.addApplicationFont(resource_path(f'fonts/{fn}'))
             loaded.append(fn)
 
-    LOG.info(f'Load fonts: [{", ".join(loaded)}]')
+    LOG.debug(f'Load fonts: [{", ".join(loaded)}]')
 
     if ret_font:
         return gui.QFont(ret_font, ret_size)
@@ -66,6 +66,7 @@ class InaccessibleDirsWarning(widgets.QMessageBox):
         if self.dontShowCheckbox.isChecked():
             CONFIG['opt']['warn_inaccessible_dirs'] = 'false'
             CONFIG.save()
+            LOG.info('Don\'t show inaccessible dirs warning anymore')
 
 
 def setAdjustGeometry(widget: widgets.QWidget, x: int, y: int, w: int = None, h: int = None):
@@ -217,6 +218,7 @@ class NewShortcutButton(widgets.QPushButton):
         if event.button() != core.Qt.MouseButton.LeftButton:
             return
 
+        LOG.debug('"New shortcut" button is pressed')
         targetPath = widgets.QFileDialog.getOpenFileName(
             self,
             TEXT.SELECT_FILE,
@@ -261,6 +263,7 @@ class RefreshWindowButton(widgets.QPushButton):
         if event.button() != core.Qt.MouseButton.LeftButton:
             return
 
+        LOG.debug('"Refresh" button is pressed')
         self.mainWindow.refresh()
 
 
@@ -281,6 +284,7 @@ class LanguageButton(widgets.QPushButton):
         if event.button() != core.Qt.MouseButton.LeftButton:
             return
 
+        LOG.debug('"Change language" button is pressed')
         menu = widgets.QMenu(self)
         wrapContextMenuStyleSheet(menu)
         acts = {
@@ -289,11 +293,12 @@ class LanguageButton(widgets.QPushButton):
         }
         menu.addActions(acts)
 
-        action = acts.get(menu.exec(gui.QCursor().pos()))
-        if not action or action == CONFIG['opt']['lang']:
+        lang = acts.get(menu.exec(gui.QCursor().pos()))
+        if not lang or lang == CONFIG['opt']['lang']:
             return
 
-        CONFIG['opt']['lang'] = action
+        LOG.debug(f'Switch to "{lang}" lang')
+        CONFIG['opt']['lang'] = lang
         CONFIG.save()
         self.mainWindow.refresh()
 
@@ -330,6 +335,7 @@ class StartMenuShortcutGUI(widgets.QCheckBox):
         subprocess.Popen(f'explorer.exe /select, "{self.targetPath}"', shell=True)
 
     def contextMenuEvent(self, event: gui.QContextMenuEvent) -> None:
+        LOG.debug(f'Shortcut\'s "{self.shortcut.name}" context menu is called')
         menu = widgets.QMenu(self)
         wrapContextMenuStyleSheet(menu)
 
@@ -355,6 +361,7 @@ class StartMenuShortcutGUI(widgets.QCheckBox):
             self.openTargetInExplorer()
 
         elif action is renameAction:
+            LOG.debug('"Rename shortcut" context menu action is pressed')
             dialog = EnterShortcutNameDialog(TEXT.RENAME_SHORTCUT, TEXT.ENTER_NAME, icon=self.icon())
             dialog.setTextValue(self.shortcut.name)
 
@@ -472,6 +479,7 @@ class StartMenuFolderGUI(widgets.QLabel):
     def mousePressEvent(self, event: gui.QMouseEvent):
         if event.button() == core.Qt.MouseButton.LeftButton and not self.isSkipped:
             self.reverseKeptState()
+            LOG.debug(f'Set {"<keep>" if self.isKept else "<unkeep>"} state to folder "{self.folder.name}"')
 
 
 class ShortcutArea(widgets.QScrollArea):
@@ -529,7 +537,7 @@ class ShortcutArea(widgets.QScrollArea):
         self.setWidgets()
 
 
-class PathToMoveLabel(widgets.QLabel):
+class PathForMoveLabel(widgets.QLabel):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.setDisabled(True)
@@ -541,6 +549,10 @@ class PathToMoveLabel(widgets.QLabel):
         return super().setDisabled(a0)
 
     def mousePressEvent(self, event: gui.QMouseEvent) -> None:
+        if event.button() != core.Qt.MouseButton.LeftButton:
+            return
+
+        LOG.debug('"Set path for move" button is pressed')
         path = widgets.QFileDialog.getExistingDirectory(
             self,
             TEXT.SELECT_FOLDER,
@@ -559,7 +571,7 @@ class PathToMoveLabel(widgets.QLabel):
 
 
 class MoveToFolderRadioButton(widgets.QRadioButton):
-    def __init__(self, selectPathButton: PathToMoveLabel, *args, **kwargs):
+    def __init__(self, selectPathButton: PathForMoveLabel, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
         # noinspection PyUnresolvedReferences
@@ -609,7 +621,7 @@ class ApplyButton(widgets.QPushButton):
         if event.button() != core.Qt.MouseButton.LeftButton:
             return
 
-        LOG.debug('Apply...')
+        LOG.debug('"Apply" button is pressed')
 
         foldersToClean: list[StartMenu.folder_to_clean] = []
         for guiFolder in self.mainWindow.shortcutArea.guiFolders:
@@ -636,7 +648,7 @@ class ApplyButton(widgets.QPushButton):
             )
 
         if self.mainWindow.moveRadioButton.isChecked():
-            path = HTML(self.mainWindow.moveRemovePathToMoveLabel.toolTip()).clear()
+            path = HTML(self.mainWindow.moveRemovePathForMoveLabel.toolTip()).clear()
 
             if not path:
                 MessageBox.critical(TEXT.NEED_SELECT_DIRECTORY, parent=self)
@@ -708,7 +720,7 @@ class ClassicStylist(Stylist):
         # right buttons
         #     move or remove
         self.mw.moveRemoveBlock.setGeometry(275, 20, 112, 60)
-        setAdjustGeometry(self.mw.moveRemovePathToMoveLabel, 0, 0)
+        setAdjustGeometry(self.mw.moveRemovePathForMoveLabel, 0, 0)
         setAdjustGeometry(self.mw.moveRadioButton, 0, 20, h=20)
         setAdjustGeometry(self.mw.removeRadioButton, 0, 40, h=20)
 
@@ -740,7 +752,7 @@ class MaterialStylist(Stylist):
         # right buttons
         #     move or remove
         self.mw.moveRemoveBlock.setGeometry(270, 20, 125, 57)
-        setAdjustGeometry(self.mw.moveRemovePathToMoveLabel, 3, 0)
+        setAdjustGeometry(self.mw.moveRemovePathForMoveLabel, 3, 0)
         setAdjustGeometry(self.mw.moveRadioButton, 0, 17, 122, 20)
         setAdjustGeometry(self.mw.removeRadioButton, 0, 37, 122, 20)
 
@@ -795,8 +807,8 @@ class MainWindow(widgets.QMainWindow):
         self.shortcutArea = ShortcutArea(self.centralwidget)
 
         self.moveRemoveBlock = widgets.QWidget(self.centralwidget)
-        self.moveRemovePathToMoveLabel = PathToMoveLabel(self.moveRemoveBlock)
-        self.moveRadioButton = MoveToFolderRadioButton(self.moveRemovePathToMoveLabel, self.moveRemoveBlock)
+        self.moveRemovePathForMoveLabel = PathForMoveLabel(self.moveRemoveBlock)
+        self.moveRadioButton = MoveToFolderRadioButton(self.moveRemovePathForMoveLabel, self.moveRemoveBlock)
         self.removeRadioButton = RemoveRadioButton(self.moveRemoveBlock)
 
         self.applyToBlock = widgets.QWidget(self.centralwidget)
@@ -826,7 +838,7 @@ class MainWindow(widgets.QMainWindow):
         return w
 
     def retranslateUi(self):
-        self.moveRemovePathToMoveLabel.setText(HTML(TEXT.SELECT_DIRECTORY).wrap_underline())
+        self.moveRemovePathForMoveLabel.setText(HTML(TEXT.SELECT_DIRECTORY).wrap_underline())
         self.moveRadioButton.setText(TEXT.MOVE_TO_DIRECTORY)
         self.removeRadioButton.setText(TEXT.REMOVE)
 

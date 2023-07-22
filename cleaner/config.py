@@ -26,7 +26,7 @@ class Config(configparser.ConfigParser):
         with open(self.path, 'w') as f:
             self.write(f)
 
-        LOG.info(f'Save config / [opt]: {self.items("opt")}')
+        LOG.debug(f'Save config / [opt]: {self.items("opt")}')
 
 
 CONFIG = Config()
