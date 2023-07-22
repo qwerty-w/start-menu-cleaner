@@ -9,7 +9,7 @@ LOG = getLogger(__name__)
 
 class Config(configparser.ConfigParser):
     def __init__(self):
-        super().__init__({'lang': 'en', 'show_inaccessible_warn': 'true'}, default_section='opt')
+        super().__init__({'lang': 'en', 'warn_inaccessible_dirs': 'true'}, default_section='opt')
         self.path = os.path.join(os.getenv('PROGRAMDATA'), 'SMCleaner', 'config.ini')
 
         if not os.path.exists(self.path):

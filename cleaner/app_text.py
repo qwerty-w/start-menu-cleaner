@@ -62,6 +62,7 @@ class EN:
     QUESTION = 'Question'
     INFO = 'Info'
     CHANGE_LANGUAGE = 'Change language'
+    DONT_SHOW_ANYMORE = 'Don\'t show anymore'
 
 
 class RU:
@@ -123,6 +124,7 @@ class RU:
     QUESTION = 'Вопрос'
     INFO = 'Информация'
     CHANGE_LANGUAGE = 'Изменить язык'
+    DONT_SHOW_ANYMORE = 'Не показывать больше'
 
 
 class _text:

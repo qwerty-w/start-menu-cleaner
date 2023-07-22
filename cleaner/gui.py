@@ -23,39 +23,49 @@ LOG = log.getLogger(__name__)
 def load_fonts(ret_font: str = None, ret_size: int = 9) -> Optional[gui.QFont]:
     fnames = os.listdir(resource_path('fonts'))
 
+    loaded = []
     for fn in fnames:
-        gui.QFontDatabase.addApplicationFont(resource_path(f'fonts/{fn}'))
+        if os.path.splitext(fn)[1] == '.ttf':
+            gui.QFontDatabase.addApplicationFont(resource_path(f'fonts/{fn}'))
+            loaded.append(fn)
 
-    LOG.info(f'Load fonts: [{", ".join(fnames)}]')
+    LOG.info(f'Load fonts: [{", ".join(loaded)}]')
 
     if ret_font:
         return gui.QFont(ret_font, ret_size)
 
 
-def warn_inaccessible_dirs(warning_parent: widgets.QWidget) -> None:
-    i_dirs = [d for d in StartMenu.default_dirs if not d.is_accessible]
+class InaccessibleDirsWarning(widgets.QMessageBox):
+    def __init__(self, parent: widgets.QWidget):
+        self.i_dirs = [d for d in StartMenu.default_dirs if not d.is_accessible]
 
-    if not i_dirs:
-        return
+        for d in self.i_dirs:
+            if d is StartMenu.default_dirs.system:
+                text = TEXT.NEED_ADMIN_RIGHTS_FOR_ALL_USERS_SM_PATH.format(sys_d=StartMenu.default_dirs.system.path)
+                break
 
-    LOG.info('Show warning about inaccessible SM dirs')
+        else:
+            no_access = TEXT.NO_ACCESS_TO_DIRS if len(self.i_dirs) > 1 else TEXT.NO_ACCESS_TO_DIR
+            text = no_access.format(dirs='\n'.join(d.path for d in self.i_dirs))
 
-    for d in i_dirs:
-        if d is StartMenu.default_dirs.system:
-            MessageBox.warning(
-                TEXT.NEED_ADMIN_RIGHTS_FOR_ALL_USERS_SM_PATH.format(sys_d=StartMenu.default_dirs.system.path),
-                TEXT.NO_ACCESS_WARNING,
-                warning_parent,
-            )
-            break
+        super().__init__(self.Icon.Warning, TEXT.NO_ACCESS_WARNING, text, self.StandardButton.Ok, parent)
+        self.dontShowCheckbox = widgets.QCheckBox(TEXT.DONT_SHOW_ANYMORE, self)
+        self.setCheckBox(self.dontShowCheckbox)
 
-    else:
-        text = TEXT.NO_ACCESS_TO_DIRS if len(i_dirs) > 1 else TEXT.NO_ACCESS_TO_DIR
-        MessageBox.warning(
-            text.format(dirs='\n'.join(d.path for d in i_dirs)),
-            TEXT.NO_ACCESS_WARNING,
-            warning_parent
-        )
+    def warn(self):
+        if not self.i_dirs:
+            return LOG.info('No inaccessible dirs')
+
+        elif CONFIG['opt']['warn_inaccessible_dirs'] == 'false':
+            return LOG.info('Skip inaccessible dirs warning by config')
+
+        LOG.info('Show warning about inaccessible SM dirs')
+        winsound.PlaySound('SystemExclamation', winsound.SND_ASYNC)
+        self.exec()
+
+        if self.dontShowCheckbox.isChecked():
+            CONFIG['opt']['warn_inaccessible_dirs'] = 'false'
+            CONFIG.save()
 
 
 def setAdjustGeometry(widget: widgets.QWidget, x: int, y: int, w: int = None, h: int = None):

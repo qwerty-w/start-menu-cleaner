@@ -40,7 +40,7 @@ def main():
 
     cleaner.LOG.info('Show main window')
     window.show()
-    cleaner.warn_inaccessible_dirs(window)
+    cleaner.InaccessibleDirsWarning(window).warn()
 
     app.exec()
 

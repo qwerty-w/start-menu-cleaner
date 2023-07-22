@@ -7,7 +7,7 @@ LOG.setLevel(log.logging.INFO)  # log level for application
 
 from .config import CONFIG
 from .menu import StartMenu
-from .gui import MainWindow, widgets, warn_inaccessible_dirs, load_fonts
+from .gui import MainWindow, widgets, load_fonts, InaccessibleDirsWarning
 
 
 def set_excepthook(app: gui.widgets.QApplication):
