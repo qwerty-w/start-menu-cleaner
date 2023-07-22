@@ -1,12 +1,13 @@
 import sys
 
 from . import log
+
+LOG = log.getLogger(__name__)
+LOG.setLevel(log.logging.INFO)  # log level for application
+
 from .config import CONFIG
 from .menu import StartMenu
 from .gui import MainWindow, widgets, warn_inaccessible_dirs, load_fonts
-
-
-LOG = log.getLogger(__name__)
 
 
 def set_excepthook(app: gui.widgets.QApplication):

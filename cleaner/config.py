@@ -1,6 +1,11 @@
 import os
 import configparser
 
+from .log import getLogger
+
+
+LOG = getLogger(__name__)
+
 
 class Config(configparser.ConfigParser):
     def __init__(self):
@@ -11,14 +16,17 @@ class Config(configparser.ConfigParser):
             if not os.path.exists(dirs := os.path.dirname(self.path)):
                 os.makedirs(dirs)
 
-            self.update()
+            self.save()
         else:
-            with open(self.path) as f:
-                self.read(f)
+            self.read(self.path)
+
+        LOG.info('Init config.ini')
 
     def save(self):
         with open(self.path, 'w') as f:
             self.write(f)
+
+        LOG.info(f'Save config / [opt]: {self.items("opt")}')
 
 
 CONFIG = Config()

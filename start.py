@@ -29,7 +29,6 @@ def main():
     elif args.logging == 'cleaning':
         cleaner.log.getLogger('cleaner.menu.clean').KEEP_LOG_FILE = True
 
-    cleaner.LOG.setLevel(cleaner.log.logging.INFO)
     cleaner.LOG.info(f'Application start ({style})')
 
     app = cleaner.widgets.QApplication([])
