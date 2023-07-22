@@ -11,6 +11,7 @@ from PyQt6 import QtGui as gui
 import qt_material  # after PyQt !
 
 from . import log
+from .config import CONFIG
 from .app_text import TEXT
 from .menu import StartMenuShortcut, SMFolder, StartMenu
 from .utils import resource_path, HTML, validate_filename, FILENAME_FORBIDDEN_CHARACTERS
@@ -60,6 +61,11 @@ def warn_inaccessible_dirs(warning_parent: widgets.QWidget) -> None:
 def setAdjustGeometry(widget: widgets.QWidget, x: int, y: int, w: int = None, h: int = None):
     widget.adjustSize()
     widget.setGeometry(x, y, w if w else widget.width(), h if h else widget.height())
+
+
+def wrapContextMenuStyleSheet(menu: widgets.QMenu):
+    return menu.setStyleSheet('QMenu { color: black; background-color: white; }'
+                              'QMenu::item:selected { color: black; background-color: #F0F0F0; }')
 
 
 class MessageBox:
@@ -248,6 +254,40 @@ class RefreshWindowButton(widgets.QPushButton):
         self.mainWindow.refresh()
 
 
+class LanguageButton(widgets.QPushButton):
+    def __init__(self, mainWindow: 'MainWindow', *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.mainWindow = mainWindow
+
+        self.setIcon(gui.QIcon(resource_path(r'icons\language-svgrepo-com.png')))
+        self.setStyleSheet("""
+        QPushButton {
+            border: none;
+        }""")
+        self.setCursor(gui.QCursor(core.Qt.CursorShape.PointingHandCursor))
+        self.setToolTip(TEXT.CHANGE_LANGUAGE)
+
+    def mousePressEvent(self, event: gui.QMouseEvent) -> None:
+        if event.button() != core.Qt.MouseButton.LeftButton:
+            return
+
+        menu = widgets.QMenu(self)
+        wrapContextMenuStyleSheet(menu)
+        acts = {
+            gui.QAction('English', self): 'en',
+            gui.QAction('Russian', self): 'ru'
+        }
+        menu.addActions(acts)
+
+        action = acts.get(menu.exec(gui.QCursor().pos()))
+        if not action or action == CONFIG['opt']['lang']:
+            return
+
+        CONFIG['opt']['lang'] = action
+        CONFIG.save()
+        self.mainWindow.refresh()
+
+
 class StartMenuShortcutGUI(widgets.QCheckBox):
     iconProvider = widgets.QFileIconProvider()
 
@@ -280,9 +320,8 @@ class StartMenuShortcutGUI(widgets.QCheckBox):
         subprocess.Popen(f'explorer.exe /select, "{self.targetPath}"', shell=True)
 
     def contextMenuEvent(self, event: gui.QContextMenuEvent) -> None:
-        menu = widgets.QMenu()
-        menu.setStyleSheet('QMenu { color: black; background-color: white; }'
-                           'QMenu::item:selected { color: black; background-color: #F0F0F0; }')
+        menu = widgets.QMenu(self)
+        wrapContextMenuStyleSheet(menu)
 
         openInExplorerAction = gui.QAction(gui.QIcon(resource_path('icons/open-shortcut-directory.png')),
                                        TEXT.OPEN_SHORTCUT_PATH, self)
@@ -386,8 +425,7 @@ class StartMenuFolderGUI(widgets.QLabel):
 
     def contextMenuEvent(self, event: gui.QContextMenuEvent) -> None:
         menu = widgets.QMenu(self)
-        menu.setStyleSheet('QMenu { color: black; background-color: white; }'
-                           'QMenu::item:selected { color: black; background-color: #F0F0F0; }')
+        wrapContextMenuStyleSheet(menu)
 
         keepAction = gui.QAction(TEXT.UNKEEP_FOLDER if self.isKept else TEXT.KEEP_FOLDER, self)
 
@@ -633,6 +671,8 @@ class Stylist(ABC):
     def common(self):
         self.mw.newShortcutButton.setGeometry(11, 5, 14, 14)
         self.mw.refreshWindowButton.setGeometry(34, 5, 14, 14)
+        self.mw.languageButton.setGeometry(243, 5, 16, 16)
+        self.mw.languageButton.setIconSize(core.QSize(21, 21))
 
         self.mw.shortcutArea.setGeometry(10, 25, 250, 275)  # -1px h
 
@@ -652,7 +692,8 @@ class ClassicStylist(Stylist):
         self.mw.setStyleSheet('MainWindow { background-color: #EFEFF1; font-family: Roboto; }')
 
         # for all users button
-        NewShortcutInputDialog.forAllUsersCheckboxPosition = 210, 10
+        NewShortcutInputDialog.forAllUsersCheckboxPosition = (130 if CONFIG['opt']['lang'] == 'ru' else 210,
+                                                              10)
 
         # right buttons
         #     move or remove
@@ -683,23 +724,24 @@ class MaterialStylist(Stylist):
         self.mw.shortcutArea.initLayout.setSpacing(0)
 
         # for all users button
-        NewShortcutInputDialog.forAllUsersCheckboxPosition = 194, 1
+        NewShortcutInputDialog.forAllUsersCheckboxPosition = (118 if CONFIG['opt']['lang'] == 'ru' else 194,
+                                                              1)
 
         # right buttons
         #     move or remove
-        self.mw.moveRemoveBlock.setGeometry(270, 20, 122, 57)
+        self.mw.moveRemoveBlock.setGeometry(270, 20, 125, 57)
         setAdjustGeometry(self.mw.moveRemovePathToMoveLabel, 3, 0)
         setAdjustGeometry(self.mw.moveRadioButton, 0, 17, 122, 20)
-        setAdjustGeometry(self.mw.removeRadioButton, 0, 37, 100, 20)
+        setAdjustGeometry(self.mw.removeRadioButton, 0, 37, 122, 20)
 
         #     apply to checked or unchecked
         self.mw.applyToBlock.setGeometry(270, 82, 122, 57)
         setAdjustGeometry(self.mw.applyToLabel, 3, 0)
-        setAdjustGeometry(self.mw.applyToCheckedRadioButton, 0, 17, 100, 20)
-        setAdjustGeometry(self.mw.applyToUncheckedRadioButton, 0, 37, 100, 20)
+        setAdjustGeometry(self.mw.applyToCheckedRadioButton, 0, 17, 122, 20)
+        setAdjustGeometry(self.mw.applyToUncheckedRadioButton, 0, 37, 122, 20)
 
         #     empty folders
-        setAdjustGeometry(self.mw.apply2EmptyFolders, 270, 150, 115)
+        setAdjustGeometry(self.mw.apply2EmptyFolders, 270, 150, 122)
 
         # apply
         self.mw.applyButton.setGeometry(292, 270, 80, 31)
@@ -738,6 +780,7 @@ class MainWindow(widgets.QMainWindow):
 
         self.newShortcutButton = NewShortcutButton(self.centralwidget)
         self.refreshWindowButton = RefreshWindowButton(self, self.centralwidget)
+        self.languageButton = LanguageButton(self, self.centralwidget)
 
         self.shortcutArea = ShortcutArea(self.centralwidget)
 

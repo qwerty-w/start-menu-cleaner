@@ -1,6 +1,7 @@
+from .config import CONFIG
 
 
-class AppText:
+class EN:
     SELECT_DIRECTORY = 'Select a directory'
     SELECT_FOLDER = 'Select a folder:'
     SELECT_FILE = 'Select a file:'
@@ -60,6 +61,73 @@ class AppText:
     DIRECTORY = 'Directory'
     QUESTION = 'Question'
     INFO = 'Info'
+    CHANGE_LANGUAGE = 'Change language'
 
 
-TEXT = AppText()
+class RU:
+    SELECT_DIRECTORY = 'Выбрать папку'
+    SELECT_FOLDER = 'Выберите директорию:'
+    SELECT_FILE = 'Выберите файл:'
+    MOVE_TO_DIRECTORY = 'Переместить'
+    REMOVE = 'Удалить'
+    APPLY_TO = 'Применить к:'
+    SELECTED = 'Отмеченным'
+    UNSELECTED = 'Неотмеченным'
+    APPLY_TO_EMPTY_FOLDERS = 'Применить к\nпустым папкам'
+    APPLY = 'Очистить'
+    MAINWINDOW_TITLE = 'Start Menu Cleaner'
+    OPEN_SHORTCUT_PATH = 'Показать папку ярлыка'
+    OPEN_TARGET_PATH = 'Показать таргет ярлыка'
+    KEEP_FOLDER = 'Оставить папку'
+    UNKEEP_FOLDER = 'Не оставлять папку'
+    SKIP_FOLDER = 'Полностью пропустить'
+    DONT_SKIP_FOLDER = 'Не пропускать'
+    FOR_ALL_USERS = 'Для всех пользователей'
+    ENTER_NAME = 'Введите имя:'
+    NEW_SHORTCUT = 'Новый ярлык'
+    ERROR = 'Ошибка'
+    NAME_CANT_BE_EMPTY = 'Имя не может быть пустым'
+    CHARACTERS_CANT_BE_USED = 'Символы {characters} не могут быть использованы'
+    NEED_ADMIN_RIGHTS_FOR_CREATE_ALL_USERS_SHORTCUT = 'Для того чтобы создать ярлык для всех пользователей требуются ' \
+                                                      'права администратора'
+    COMPLETE = 'Успешно'
+    SHORTCUT_CREATED = 'Ярлык был успешно создан'
+    KEEP_ALL_FOLDERS = 'Оставить все папки'
+    UNKEEP_ALL_FOLDERS = 'Не оставлять все папки'
+    APPLY_CLEANED = 'Было очищено {cleanedFolders} папок, {appliedShortcuts} ярлыков было {actionText}'
+    NEED_SELECT_DIRECTORY = 'Вы должны выбрать директорию для того что переместить ярлыки в неё'
+    MOVED = 'перемещено'
+    REMOVED = 'удалено'
+    ADD_NEW_SHORTCUT_TOOL_TIP = 'Новый ярлык'
+    REFRESH_WINDOW_TOOL_TIP = 'Обновить'
+    NO_EMPTY_FOLDERS = 'Нет пустых папок'
+    NO_ACCESS_WARNING = 'Нет доступа'
+    NEED_ADMIN_RIGHTS_FOR_ALL_USERS_SM_PATH = \
+        '{sys_d}\n\nЯрлыки для всех пользователей не будут отображаться, потому что находятся в директории с ' \
+        'повышенным уровнем доступа. Измените права доступа для директории и её подпапок или запустите приложение ' \
+        'от имени администратора'
+    NO_ACCESS_TO_DIR = '{dirs}\n\nНет доступа к директории. Её ярлыки не будут отображены. Измените права доступа ' \
+                       'для директории её подпапок или запустите приложение от имени администратора'
+    NO_ACCESS_TO_DIRS = '{dirs}\n\nНет доступа к директориям. Их ярлыки не будут отображены. Измените права доступа ' \
+                        'для директорий и их подпапок или запустите приложение от имени администратора'
+    WARNING = 'Предупреждение'
+    HAVE_CLEAN_ERRORS_WARNING = 'Во время очистки, было вызвано {errors_count} ошибок, более детальную информацию ' \
+                                'можно найти в лог-файле ({log_fp}).\nРезультат - {cleanedFolders} папок и ' \
+                                '{appliedShortcuts} ярлыков было {actionText}'
+    RENAME = 'Переименовать'
+    RENAME_SHORTCUT = 'Переименовать ярлык'
+    SHORTCUT_RENAMED = 'Ярлык "{old_name}" был переименован в "{new_name}"'
+    RENAME_SHORTCUT_NO_ACCESS = 'Нет доступа. Попробуйте запустить приложение с правами администратора'
+    RENAME_SHORTCUT_ERROR = 'Невозможно переименовать ярлык: winerror #{winerror}'
+    DIRECTORY = 'Директория'
+    QUESTION = 'Вопрос'
+    INFO = 'Информация'
+    CHANGE_LANGUAGE = 'Изменить язык'
+
+
+class _text:
+    def __getattr__(self, item):
+        return getattr(RU, item) if CONFIG['opt']['lang'] == 'ru' else getattr(EN, item)
+
+
+TEXT = _text()
