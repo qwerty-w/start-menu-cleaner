@@ -75,7 +75,7 @@ class RU:
     SELECTED = 'Отмеченным'
     UNSELECTED = 'Неотмеченным'
     APPLY_TO_EMPTY_FOLDERS = 'Применить к\nпустым папкам'
-    APPLY = 'Очистить'
+    APPLY = 'Apply'
     MAINWINDOW_TITLE = 'Start Menu Cleaner'
     OPEN_SHORTCUT_PATH = 'Показать папку ярлыка'
     OPEN_TARGET_PATH = 'Показать таргет ярлыка'

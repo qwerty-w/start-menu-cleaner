@@ -792,6 +792,8 @@ class Style(Enum):
 
 
 class MainWindow(widgets.QMainWindow):
+    current_w: 'MainWindow' = None
+
     def __init__(self, app: widgets.QApplication, style: Style):
         super().__init__()
         self.app = app
@@ -824,6 +826,11 @@ class MainWindow(widgets.QMainWindow):
         self.window_style.value(self.app, self).apply()  # apply styles for app and MainWindow
         self.setWindowIcon(gui.QIcon(resource_path('icons/menu.ico')))
         core.QMetaObject.connectSlotsByName(self)
+
+    def __new__(cls, *args, **kwargs):
+        instance = super().__new__(cls, *args, **kwargs)
+        cls.current_w = instance
+        return instance
 
     def refresh(self) -> 'MainWindow':
         LOG.info('Update window')
