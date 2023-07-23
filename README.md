@@ -24,5 +24,5 @@ optional arguments:
   --style {classic,material}
                         classic - default Windows style, material (by-default) - material style
 ```
-### Examples:
+### Preview:
 
